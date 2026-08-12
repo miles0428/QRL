@@ -45,6 +45,7 @@ from qiskit_machine_learning.connectors import TorchConnector
 from qiskit_machine_learning.neural_networks import EstimatorQNN
 
 from .base import QFunction
+from .normalize import CartPoleNormalizer
 
 
 def build_ansatz(n_qubits: int, n_layers: int, reuploading: bool):
@@ -125,12 +126,7 @@ class VQCQFunction(QFunction):
         #     2=pole angle, 3=pole angular v). Bounded dims divided by their
         #     termination bound; unbounded velocity dims squashed. ---
         assert self.obs_dim == 4, "normalization is specialized for CartPole's 4 observations"
-        self.cart_pos_bound = float(norm_cfg["cart_position_bound"])
-        self.pole_angle_bound = float(norm_cfg["pole_angle_bound"])
-        vt = str(norm_cfg["velocity_transform"]).lower()
-        if vt not in ("arctan", "tanh"):
-            raise ValueError(f"velocity_transform must be 'arctan' or 'tanh', got {vt!r}")
-        self._vtransform = torch.arctan if vt == "arctan" else torch.tanh
+        self.norm = CartPoleNormalizer(norm_cfg)
 
         # --- quantum circuit + QNN + TorchConnector (variational weights) ---
         self.circuit, input_params, weight_params = build_ansatz(
@@ -153,21 +149,10 @@ class VQCQFunction(QFunction):
         self.lam = nn.Parameter(torch.ones(self.obs_dim))     # input scaling  (Failure Mode 2)
         self.w = nn.Parameter(torch.ones(self.n_actions))     # output scaling (Failure Mode 1)
 
-    # -- normalization -------------------------------------------------------
-    def _normalize(self, s: torch.Tensor) -> torch.Tensor:
-        """Raw CartPole obs [B,4] -> normalized [B,4] (bounded dims /bound, velocities squashed)."""
-        cols = [
-            s[:, 0] / self.cart_pos_bound,      # cart position
-            self._vtransform(s[:, 1]),          # cart velocity (unbounded)
-            s[:, 2] / self.pole_angle_bound,    # pole angle
-            self._vtransform(s[:, 3]),          # pole angular velocity (unbounded)
-        ]
-        return torch.stack(cols, dim=1)
-
     # -- forward -------------------------------------------------------------
     def forward(self, states: torch.Tensor) -> torch.Tensor:
         states = states.to(torch.float32)
-        encoded = self.lam * self._normalize(states)        # trainable input scaling
+        encoded = self.lam * self.norm(states)              # trainable input scaling
         raw = self.vqc(encoded).to(self.w.dtype)            # [B, n_actions] in [-1, 1]
         return raw * self.w                                 # trainable output scaling -> Q-values
 
