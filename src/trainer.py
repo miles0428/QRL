@@ -41,6 +41,35 @@ CSV_HEADER = [
 ]
 
 
+def epsilon_at(
+    schedule: str,
+    episode: int,
+    total_env_steps: int,
+    epsilon_start: float,
+    epsilon_end: float,
+    epsilon_decay: float,
+    epsilon_decay_steps: int,
+) -> float:
+    """Exploration rate under either supported schedule.
+
+    "exponential_episodes" (v3 default) is the Skolik reference schedule:
+    epsilon is multiplied by `epsilon_decay` once per *episode* and floored at
+    `epsilon_end`. At decay=0.99 it reaches 0.01 after ~458 episodes. Note this
+    is episode-indexed, so it is unaffected by how long each episode runs --
+    which matters here, because episode length grows by an order of magnitude
+    as the agent improves.
+
+    "linear_steps" is the pre-v3 schedule: linear in *environment* steps over
+    `epsilon_decay_steps`. Kept so old configs reproduce exactly.
+    """
+    if schedule == "exponential_episodes":
+        return max(epsilon_end, epsilon_start * (epsilon_decay**episode))
+    if schedule == "linear_steps":
+        progress = max(0.0, 1.0 - total_env_steps / epsilon_decay_steps)
+        return epsilon_end + (epsilon_start - epsilon_end) * progress
+    raise ValueError(f"unknown epsilon schedule: {schedule!r}")
+
+
 def _param_to_str(model: nn.Module, name: str) -> str:
     param = getattr(model, name, None)
     if param is None:
@@ -87,10 +116,12 @@ def train(
     batch_size: int = 16,
     buffer_capacity: int = 10_000,
     min_buffer_size: int = 16,
-    target_update_every: int = 30,  # gradient steps, per spec (not episodes)
+    target_update_every: int = 1,  # gradient steps, per spec (not episodes)
+    epsilon_schedule: str = "exponential_episodes",
     epsilon_start: float = 1.0,
     epsilon_end: float = 0.01,
-    epsilon_decay_steps: int = 20_000,  # environment steps, linear decay
+    epsilon_decay: float = 0.99,  # per-episode multiplier, exponential_episodes
+    epsilon_decay_steps: int = 20_000,  # environment steps, linear_steps only
     solve_threshold: float = 475.0,
     solve_window: int = 100,
     max_steps_per_episode: int = 500,
@@ -139,8 +170,14 @@ def train(
                 episode_losses: list[float] = []
 
                 for _step in range(max_steps_per_episode):
-                    epsilon = epsilon_end + (epsilon_start - epsilon_end) * max(
-                        0.0, 1.0 - total_env_steps / epsilon_decay_steps
+                    epsilon = epsilon_at(
+                        epsilon_schedule,
+                        episode,
+                        total_env_steps,
+                        epsilon_start,
+                        epsilon_end,
+                        epsilon_decay,
+                        epsilon_decay_steps,
                     )
                     action = _select_action(model, obs, epsilon, n_actions)
                     next_obs, reward, terminated, truncated, _info = env.step(action)

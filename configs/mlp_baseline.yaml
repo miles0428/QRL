@@ -1,29 +1,38 @@
 # Classical control: MLP Q-function, parameter-count matched to configs/qdqn.yaml's
 # VQC (46 params: 40 circuit + 4 lam + 2 w) within +-20%. hidden=6 gives 44 params --
-# see README for the derivation. Same trainer, same hyperparameters as qdqn.yaml
-# wherever they're not architecture-specific, for a fair comparison.
+# see README for the derivation.
+#
+# Every DQN hyperparameter below is deliberately identical to configs/qdqn.yaml.
+# That is the whole point of this file: the only difference between the two runs
+# should be the function approximator. v3 changed target_update_every (30 -> 1)
+# and the epsilon schedule (linear-in-steps -> exponential-per-episode) on the
+# quantum side, so both are mirrored here to keep the comparison fair.
 name: mlp_baseline
-model: mlp
 
-# --- model architecture ---
-hidden: 6   # 7*hidden + 2 params = 44 at hidden=6, vs VQC's 46
+model:
+  type: mlp
+  hidden: 6   # 7*hidden + 2 params = 44 at hidden=6, vs the VQC's 46
 
-# --- single parameter group ---
-lr: 1.0e-3
+optim:
+  lr: 0.001
 
-# --- DQN hyperparameters (identical to configs/qdqn.yaml) ---
-gamma: 0.99
-batch_size: 16
-buffer_capacity: 10000
-min_buffer_size: 16
-target_update_every: 30
-epsilon_start: 1.0
-epsilon_end: 0.01
-epsilon_decay_steps: 20000
-max_episodes: 2000
-max_steps_per_episode: 500
+trainer:
+  # The MLP is ~0.01 s/gradient step, so it can afford the same episode budget
+  # as the quantum run and will simply early-stop when it solves.
+  episodes: 5000
+  batch_size: 16
+  auto_batch_size: false   # classical path is not circuit-simulation bound
+  gamma: 0.99
+  buffer_capacity: 10000
+  min_buffer_size: 16
+  target_update_every: 1
+  eps_schedule: exponential_episodes
+  eps_init: 1.0
+  eps_decay: 0.99
+  eps_min: 0.01
+  max_steps_per_episode: 500
 
-# --- evaluation ---
-solve_threshold: 475.0
-solve_window: 100
-env_id: CartPole-v1
+eval:
+  solve_threshold: 475.0
+  solve_window: 100
+  env_id: CartPole-v1

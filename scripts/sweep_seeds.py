@@ -23,15 +23,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import gymnasium as gym
-import numpy as np
 import pandas as pd
 import torch
-import yaml
 
-from scripts.train import build_model_and_optimizer, print_resolved_versions
+from scripts.train import (
+    build_model_and_optimizer,
+    print_resolved_versions,
+    resolve_batch_size,
+    train_from_config,
+)
+from src.config import load_config
 from src.replay import ReplayBuffer
 from src.seeds import set_seed
-from src.trainer import _td_loss, _select_action, train
+from src.trainer import _select_action, _td_loss
 
 MAX_WALL_CLOCK_S = 6 * 3600  # ~6 hours, per project brief
 
@@ -109,16 +113,19 @@ def main():
     parser.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 4])
     parser.add_argument("--results-dir", type=str, default="results")
     parser.add_argument("--probe-steps", type=int, default=100)
-    parser.add_argument("--max-episodes", type=int, default=None, help="override config's max_episodes (e.g. for a bounded smoke test)")
+    parser.add_argument("--max-episodes", type=int, default=None, help="override config's episodes (e.g. for a bounded smoke test)")
+    parser.add_argument("--backend", type=str, default=None, help="override config's gradient.backend")
     parser.add_argument("--force", action="store_true", help="launch the full sweep even if the projected wall-clock exceeds ~6h")
     args = parser.parse_args()
 
     print_resolved_versions()
 
-    with open(args.config) as f:
-        config = yaml.safe_load(f)
+    config = load_config(args.config)
     if args.max_episodes is not None:
         config["max_episodes"] = args.max_episodes
+    if args.backend is not None:
+        config["backend"] = args.backend
+    config["batch_size"] = resolve_batch_size(config)
 
     print(f"\n=== timing probe: {args.probe_steps} real gradient steps on seed {args.seeds[0]} ===")
     seconds_per_step = time_gradient_steps(config, args.seeds[0], n_probe_steps=args.probe_steps)
@@ -144,35 +151,20 @@ def main():
     print(f"\n=== launching {len(args.seeds)}-seed sweep ===")
     csv_paths = []
     for seed in args.seeds:
-        set_seed(seed)
-        model, optimizer = build_model_and_optimizer(config, seed)
         results_path = f"{args.results_dir}/{config['name']}_{seed}.csv"
         print(f"\n--- seed {seed} ---")
-        result = train(
-            model,
-            optimizer,
-            results_path=results_path,
-            seed=seed,
-            env_id=config["env_id"],
-            max_episodes=config["max_episodes"],
-            gamma=config["gamma"],
-            batch_size=config["batch_size"],
-            buffer_capacity=config["buffer_capacity"],
-            min_buffer_size=config["min_buffer_size"],
-            target_update_every=config["target_update_every"],
-            epsilon_start=config["epsilon_start"],
-            epsilon_end=config["epsilon_end"],
-            epsilon_decay_steps=config["epsilon_decay_steps"],
-            solve_threshold=config["solve_threshold"],
-            solve_window=config["solve_window"],
-            max_steps_per_episode=config["max_steps_per_episode"],
-        )
+        model, result = train_from_config(config, seed, results_path)
         csv_paths.append(results_path)
         print(result)
 
         final_path = results_path.replace(".csv", "_final.pt")
         torch.save(model.state_dict(), final_path)
         print(f"saved final model weights to {final_path}")
+
+        if config["model_type"] == "vqc":
+            portable_path = results_path.replace(".csv", "_weights.pt")
+            torch.save(model.export_weights(), portable_path)
+            print(f"saved backend-neutral weights to {portable_path}")
 
     agg = aggregate_results(csv_paths)
     summary = agg.groupby("episode")["episode_reward"].agg(["median"]).reset_index()
