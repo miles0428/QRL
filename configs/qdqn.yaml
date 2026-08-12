@@ -1,33 +1,101 @@
 # Quantum agent: VQC Q-function.
-# Hyperparameters below are starting points from the Skolik, Jerbi & Dunjko
-# (2022) recipe (https://arxiv.org/abs/2103.15084), not tuned results -- flagged
-# here rather than presented as settled, per project working-style guidance.
+#
+# PROVENANCE. Unless a line is marked GUESS, every value here is taken from
+# Skolik et al.'s own published implementation
+# (github.com/askolik/quantum_agents, run_quantum.py) and a PyTorch
+# reproduction of the same paper (github.com/qdevpsi3/qrl-dqn-gym) -- they are
+# the authors' settings, not our tuning. Values marked GUESS are ours and
+# should be read as starting points.
+#
+# v3 changed four settings that diverged from that reference; each is flagged
+# inline with what it was before.
 name: qdqn
-model: vqc
 
-# --- model architecture ---
-n_qubits: 4
-n_layers: 5          # GUESS: Skolik et al. use varying depth per task; 5 is a starting point
-reuploading: false    # advanced ablation is a config flip to true, not a rewrite
+model:
+  type: vqc
+  n_qubits: 4
+  n_layers: 5
+  # v3: was false. The reference enables re-uploading for CartPole. With a
+  # single encoding the circuit only has base-frequency expressivity, so this
+  # is a convergence requirement here, not an optional ablation extra.
+  reuploading: true
+  # v3: was ["ZIII", "IZII"]. The paper states performance depends critically
+  # on observable choice; two-qubit tensor products let each observable read
+  # more of the register than a single-qubit Z does.
+  observables: ["ZZII", "IIZZ"]
 
-# --- three parameter groups, three learning rates (see src/models/vqc.py docstring) ---
-lr_lam: 1.0e-3         # input scaling
-lr_vqc: 1.0e-3         # variational circuit weights
-lr_w: 1.0e-1           # output scaling -- much larger; needs to move from 1 -> ~tens quickly
+trainer:
+  # v3: was 2000. The old budget was never enough to observe convergence.
+  episodes: 5000
+  batch_size: 16
+  # v3 measurement: LEFT OFF deliberately. The 4x-physical-core rule comes from
+  # the qtm paper, where it matters because qtm fans the batch out across
+  # processes -- one process per chunk. The torch_sv path we actually train on
+  # instead pushes the whole batch through one broadcast statevector
+  # simulation, so cost is nearly flat in batch size. Raising the batch
+  # therefore buys no wall-clock but does move us off the Skolik reference's
+  # batch_size=16 and change the learning dynamics. Set true only for
+  # backend: qtm.
+  auto_batch_size: false
+  gamma: 0.99
+  buffer_capacity: 10000
+  min_buffer_size: 16
+  # v3: was 30 (gradient steps). The reference uses 1 -- our target network
+  # was far too stale.
+  target_update_every: 1
+  # v3: was linear-in-env-steps. The reference decays epsilon once per episode
+  # by a constant factor. 0.99^n reaches 0.01 after ~458 episodes.
+  eps_schedule: exponential_episodes
+  eps_init: 1.0
+  eps_decay: 0.99
+  eps_min: 0.01
+  max_steps_per_episode: 500
 
-# --- DQN hyperparameters ---
-gamma: 0.99
-batch_size: 16         # deliberately small: every forward pass is a circuit simulation
-buffer_capacity: 10000
-min_buffer_size: 16
-target_update_every: 30   # gradient steps (hard update), not episodes
-epsilon_start: 1.0
-epsilon_end: 0.01
-epsilon_decay_steps: 20000  # environment steps, linear decay
-max_episodes: 2000
-max_steps_per_episode: 500
+optim:
+  lr_variational: 0.001    # circuit weights
+  lr_input_scaling: 0.001  # lam
+  lr_output_scaling: 0.1   # w -- much larger; must climb from 1 to ~tens quickly
 
-# --- evaluation ---
-solve_threshold: 475.0
-solve_window: 100
-env_id: CartPole-v1
+gradient:
+  # adjoint gradients are exact and cheaper than SPSA's stochastic estimate.
+  # method: adjoint | spsa | param_shift | lin_comb
+  #   adjoint requires backend torch_sv or qtm
+  #   spsa / param_shift / lin_comb require backend qiskit_ml
+  method: adjoint
+  # backend: torch_sv | qtm | qiskit_ml
+  # qiskit_ml is retained as the finite-shot/noisy evaluation path and as the
+  # baseline arm of figures/backend_speed_comparison.png -- not for training.
+  #
+  # v3 measurement: qtm FAILED the stop-loss rule on this machine. qtm gets its
+  # speedup by fanning the batch out over multiprocessing.Process workers; on
+  # Windows that is `spawn`, so every forward and backward launches fresh
+  # interpreters that re-import torch and qiskit -- a single episode did not
+  # finish in 10 minutes. Forced sequential (num_threads=1) it works but yields
+  # only 1.42 s/grad step against the 2.16 s qiskit-ML+SPSA baseline: 1.5x,
+  # under the 5x floor. This is a platform property, not a defect in qtm -- on
+  # Linux (fork) its published fan-out works.
+  #
+  # torch_sv keeps the whole project on Qiskit -- same QuantumCircuit, same
+  # SparsePauliOp observables, same qiskit-aer finite-shot path -- and changes
+  # only how expectation values are computed: the circuit is read out of
+  # circuit.data and evaluated as torch tensor algebra, with autograd supplying
+  # exact gradients in one reverse pass. Verified against Qiskit's own
+  # Statevector and against qtm's gradients by
+  # scripts/verify_backend_equivalence.py.
+  backend: torch_sv
+
+eval:
+  solve_threshold: 475.0
+  solve_window: 100
+  env_id: CartPole-v1
+  # Greedy (epsilon=0) evaluation. The training reward columns are recorded on
+  # EXPLORING episodes, so they understate the policy whenever epsilon is
+  # appreciable -- at eps=0.13 about one action in eight is random, enough to
+  # topple the pole well short of 500 steps however good the policy is. These
+  # settings add a separate greedy curve, which is what policy quality should
+  # be read from, and what the CartPole-v1 solve criterion is actually defined
+  # on. Costs ~12 s per evaluation once the policy is good; every 50 episodes
+  # over a 5000-episode run is roughly 20 min per seed.
+  eval_every: 50          # episodes between greedy evaluations; 0 disables
+  eval_episodes: 5        # rollouts per periodic evaluation -- noisy, for the curve
+  final_eval_episodes: 100  # one-off at end of training; the solve claim comes from this
