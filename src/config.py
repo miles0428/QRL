@@ -39,6 +39,7 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("trainer", "min_buffer_size"): "min_buffer_size",
     ("trainer", "target_update_every"): "target_update_every",
     ("trainer", "steps_per_update"): "steps_per_update",
+    ("trainer", "n_envs"): "n_envs",
     ("trainer", "loss_fn"): "loss_fn",
     ("model", "output_rescaling"): "output_rescaling",
     ("trainer", "eps_schedule"): "epsilon_schedule",
@@ -92,6 +93,7 @@ DEFAULTS: dict[str, Any] = {
     # after the 10-minute convergence requirement landed. steps_per_update is
     # also the single largest wall-clock lever: a gradient step costs far more
     # than an environment step when the Q-function is a circuit.
+    "n_envs": 1,
     "steps_per_update": 10,
     "loss_fn": "huber",
     "output_rescaling": True,

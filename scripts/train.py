@@ -113,6 +113,7 @@ def train_from_config(config: dict, seed: int, results_path: str, **overrides):
         min_buffer_size=config["min_buffer_size"],
         target_update_every=config["target_update_every"],
         steps_per_update=config["steps_per_update"],
+        n_envs=config["n_envs"],
         loss_fn=config["loss_fn"],
         epsilon_schedule=config["epsilon_schedule"],
         epsilon_start=config["epsilon_start"],
@@ -146,6 +147,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=None, help="override config/auto batch size")
     parser.add_argument("--max-wall-clock-s", type=float, default=None, help="safety cutoff, disabled by default")
     parser.add_argument("--tag", type=str, default=None, help="suffix for the results filename")
+    parser.add_argument("--n-envs", type=int, default=None, help="environments stepped in lockstep; >1 batches action selection")
     parser.add_argument("--eval-every", type=int, default=None, help="episodes between greedy evaluations; 0 disables")
     parser.add_argument("--eval-episodes", type=int, default=None, help="rollouts per periodic greedy evaluation")
     parser.add_argument(
@@ -164,6 +166,7 @@ def main():
     if args.backend is not None:
         config["backend"] = args.backend
     for flag, key in (
+        (args.n_envs, "n_envs"),
         (args.eval_every, "eval_every"),
         (args.eval_episodes, "eval_episodes"),
         (args.final_eval_episodes, "final_eval_episodes"),
