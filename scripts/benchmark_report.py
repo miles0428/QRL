@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -135,6 +136,54 @@ def scaling_row(name: str, df: pd.DataFrame) -> dict | None:
     }
 
 
+def load_final_eval(csv_path: Path) -> dict | None:
+    """The end-of-training greedy evaluation written beside a run's CSV."""
+    path = csv_path.with_name(csv_path.stem + "_eval.json")
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def aggregate_eval(runs: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Median and IQR of the GREEDY eval reward across seeds.
+
+    This, not the training curve, is what policy quality should be read from.
+    The training columns are recorded under epsilon-greedy exploration and are
+    bounded well below the agent's actual ability: measured on a 30-episode
+    check, training avg100 was 33.7 while the greedy policy scored 153.2 at the
+    same episode.
+
+    Seeds evaluate on the same episode grid (eval_every is a config value), so
+    rows are joined on episode index and truncated to the shortest seed.
+    """
+    series = {}
+    for name, df in runs.items():
+        if "eval_mean_reward" not in df.columns:
+            continue
+        ev = df[["episode", "eval_mean_reward"]].dropna()
+        if len(ev):
+            series[name] = ev.set_index("episode")["eval_mean_reward"]
+    if not series:
+        return pd.DataFrame()
+
+    joined = pd.concat(series, axis=1).dropna()
+    if joined.empty:
+        return pd.DataFrame()
+    q1, med, q3 = (joined.quantile(q, axis=1) for q in (0.25, 0.5, 0.75))
+    return pd.DataFrame(
+        {
+            "episode": joined.index,
+            "median_greedy": med.to_numpy(),
+            "q1": q1.to_numpy(),
+            "q3": q3.to_numpy(),
+            "iqr": (q3 - q1).to_numpy(),
+        }
+    )
+
+
 def aggregate_seeds(runs: dict[str, pd.DataFrame], every: int = 250) -> pd.DataFrame:
     """Median and IQR of episode reward across seeds, on a common episode grid."""
     if not runs:
@@ -170,10 +219,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--baseline-csv",
-        default="../../../results/qdqn_0.csv",
-        help="pre-v3 results CSV in the main worktree. The pre-v3 run was still going when "
-        "it was committed, so the working copy usually holds more episodes than the commit "
-        "does; whichever source has more is used.",
+        default="results/qdqn_prev3_0.csv",
+        help="pre-v3 (qiskit-ML + SPSA) results CSV, kept under its own name so the v3 sweep "
+        "cannot overwrite it -- it is the only surviving record of the old backend's "
+        "wall-clock. The pre-v3 run was still going when it was committed, so this file "
+        "usually holds more episodes than the commit does; whichever source has more is used.",
     )
     parser.add_argument("--every", type=int, default=250, help="episode stride in the curve table")
     args = parser.parse_args()
@@ -250,23 +300,53 @@ def main() -> None:
         print(f"\n(truncated to the shortest seed: {n} episodes; sweep may still be running)")
 
     print("\n" + "=" * 78)
-    print(f"SOLVE  -- mean reward >= {SOLVE_THRESHOLD:g} over {SOLVE_WINDOW} consecutive episodes")
+    print(f"GREEDY EVAL  -- median & IQR of epsilon=0 rollouts, across {len(qdqn)} seeds")
+    print("=" * 78)
+    ev = aggregate_eval(qdqn)
+    if ev.empty:
+        print("  (no eval columns -- run was produced before the greedy-eval hook, or eval_every=0)")
+    else:
+        stride = max(1, len(ev) // 20)
+        print(fmt(pd.concat([ev.iloc[::stride], ev.tail(1)]).drop_duplicates(), "%.1f"))
+    print(
+        "\nRead policy quality from THIS table, not the one above: the training columns are\n"
+        "recorded under exploration and understate the agent (measured: 33.7 training vs\n"
+        "153.2 greedy at the same episode)."
+    )
+
+    print("\n" + "=" * 78)
+    print(f"SOLVE  -- mean reward >= {SOLVE_THRESHOLD:g} over {SOLVE_WINDOW} episodes")
     print("=" * 78)
     solve_rows = []
-    for label, group in (("qdqn v3", qdqn), ("mlp", mlp)):
+    for label, group, paths in (
+        ("qdqn v3", qdqn, rdir.glob("qdqn_[0-9].csv")),
+        ("mlp", mlp, rdir.glob("mlp_baseline_[0-9].csv")),
+    ):
+        by_stem = {p.stem: p for p in paths}
         for name, df in group.items():
             ep, steps = solve_episode(df)
+            final_eval = load_final_eval(by_stem[name]) if name in by_stem else None
+            greedy = final_eval["greedy"] if final_eval else None
             solve_rows.append(
                 {
                     "run": f"{label} {name.split('_')[-1]}",
-                    "solved": ep is not None,
-                    "episodes_to_solve": ep if ep is not None else -1,
+                    # Training criterion: measured under exploration, understates.
+                    "train_solved": ep is not None,
+                    "train_eps_to_solve": ep if ep is not None else -1,
                     "env_steps_to_solve": steps if steps is not None else -1,
-                    "best_avg100": float(df["avg_reward_100"].max()),
+                    "best_train_avg100": float(df["avg_reward_100"].max()),
+                    # Greedy criterion: the standard CartPole-v1 one, the headline.
+                    "greedy_mean": greedy["mean_reward"] if greedy else float("nan"),
+                    "greedy_solved": greedy["solved"] if greedy else False,
                 }
             )
     print(fmt(pd.DataFrame(solve_rows), "%.1f"))
-    print("(-1 = not solved within the episodes run so far)")
+    print(
+        "(-1 = not solved within the episodes run so far)\n"
+        "train_* is the exploring-episode criterion and understates the agent; greedy_* is\n"
+        "the standard CartPole-v1 criterion and is the number to headline. Both are shown\n"
+        "so neither can be silently swapped for the other."
+    )
 
     print("\n" + "=" * 78)
     print("SCALING PARAMETERS  -- w must climb from 1 toward ~100 (Q* at gamma=0.99)")

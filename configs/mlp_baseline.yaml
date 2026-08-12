@@ -36,3 +36,14 @@ eval:
   solve_threshold: 475.0
   solve_window: 100
   env_id: CartPole-v1
+  # Greedy (epsilon=0) evaluation. The training reward columns are recorded on
+  # EXPLORING episodes, so they understate the policy whenever epsilon is
+  # appreciable -- at eps=0.13 about one action in eight is random, enough to
+  # topple the pole well short of 500 steps however good the policy is. These
+  # settings add a separate greedy curve, which is what policy quality should
+  # be read from, and what the CartPole-v1 solve criterion is actually defined
+  # on. Costs ~12 s per evaluation once the policy is good; every 50 episodes
+  # over a 5000-episode run is roughly 20 min per seed.
+  eval_every: 50          # episodes between greedy evaluations; 0 disables
+  eval_episodes: 5        # rollouts per periodic evaluation -- noisy, for the curve
+  final_eval_episodes: 100  # one-off at end of training; the solve claim comes from this

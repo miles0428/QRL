@@ -53,6 +53,9 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("eval", "solve_threshold"): "solve_threshold",
     ("eval", "solve_window"): "solve_window",
     ("eval", "env_id"): "env_id",
+    ("eval", "eval_every"): "eval_every",
+    ("eval", "eval_episodes"): "eval_episodes",
+    ("eval", "final_eval_episodes"): "final_eval_episodes",
 }
 
 DEFAULTS: dict[str, Any] = {
@@ -65,6 +68,14 @@ DEFAULTS: dict[str, Any] = {
     "solve_threshold": 475.0,
     "solve_window": 100,
     "env_id": "CartPole-v1",
+    # Greedy (epsilon=0) evaluation. The training reward columns are measured
+    # under exploration and understate the policy; see src/trainer.py::train.
+    # eval_every=0 disables the periodic curve entirely.
+    "eval_every": 50,
+    "eval_episodes": 5,
+    # The periodic 5-episode sample is too noisy to *claim* a solve; this is the
+    # one-off run at the end that the solve claim is made from.
+    "final_eval_episodes": 100,
     # Epsilon: "exponential_episodes" is the Skolik reference schedule
     # (eps *= decay once per episode); "linear_steps" is the pre-v3 schedule
     # (linear in environment steps). See src/trainer.py::epsilon_at.

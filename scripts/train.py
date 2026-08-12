@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.metadata
+import json
 import sys
 from pathlib import Path
 
@@ -20,6 +21,11 @@ import torch
 from src.config import load_config
 from src.seeds import set_seed
 from src.trainer import train
+
+# Must match src.trainer.train()'s eval_seed_base default, so the final greedy
+# evaluation is scored on the same start states as the periodic curve -- and so
+# neither overlaps the training seeds.
+EVAL_SEED_BASE = 10_000
 
 # qiskit-machine-learning is absent from the qtm environment (it pins
 # qiskit 1.x). Missing entries are reported rather than raising: which ones are
@@ -113,6 +119,8 @@ def train_from_config(config: dict, seed: int, results_path: str, **overrides):
         solve_threshold=config["solve_threshold"],
         solve_window=config["solve_window"],
         max_steps_per_episode=config["max_steps_per_episode"],
+        eval_every=config["eval_every"],
+        eval_episodes=config["eval_episodes"],
     )
     kwargs.update(overrides)
 
@@ -135,6 +143,14 @@ def main():
     parser.add_argument("--batch-size", type=int, default=None, help="override config/auto batch size")
     parser.add_argument("--max-wall-clock-s", type=float, default=None, help="safety cutoff, disabled by default")
     parser.add_argument("--tag", type=str, default=None, help="suffix for the results filename")
+    parser.add_argument("--eval-every", type=int, default=None, help="episodes between greedy evaluations; 0 disables")
+    parser.add_argument("--eval-episodes", type=int, default=None, help="rollouts per periodic greedy evaluation")
+    parser.add_argument(
+        "--final-eval-episodes",
+        type=int,
+        default=None,
+        help="rollouts in the end-of-training greedy evaluation; 0 skips it",
+    )
     args = parser.parse_args()
 
     print_resolved_versions()
@@ -144,6 +160,13 @@ def main():
         config["max_episodes"] = args.max_episodes
     if args.backend is not None:
         config["backend"] = args.backend
+    for flag, key in (
+        (args.eval_every, "eval_every"),
+        (args.eval_episodes, "eval_episodes"),
+        (args.final_eval_episodes, "final_eval_episodes"),
+    ):
+        if flag is not None:
+            config[key] = flag
 
     if args.batch_size is not None:
         config["batch_size"] = args.batch_size
@@ -174,6 +197,52 @@ def main():
     print("\n=== training summary ===")
     for k, v in result.items():
         print(f"{k}: {v}")
+
+    # Headline solve claim. The `solved` field above is the TRAINING criterion,
+    # measured on epsilon-greedy episodes, and understates the agent -- at
+    # epsilon=0.13 roughly one action in eight is random, which topples the pole
+    # regardless of policy quality. The standard CartPole-v1 criterion is
+    # defined on greedy play, so it is measured here, once, over enough episodes
+    # to be worth quoting. Both numbers are reported; neither replaces the other.
+    if config["final_eval_episodes"]:
+        from src.evaluate import evaluate
+
+        print(f"\n=== final greedy evaluation ({config['final_eval_episodes']} episodes) ===")
+        final_eval = evaluate(
+            model,
+            n_episodes=config["final_eval_episodes"],
+            env_id=config["env_id"],
+            seed=EVAL_SEED_BASE,
+            solve_threshold=config["solve_threshold"],
+        )
+        print(
+            f"greedy mean reward: {final_eval['mean_reward']:.1f} "
+            f"+- {final_eval['std_reward']:.1f}  "
+            f"| solved (greedy): {final_eval['solved']}  "
+            f"| solved (training avg100): {result['solved']}"
+        )
+
+        eval_path = results_path.replace(".csv", "_eval.json")
+        with open(eval_path, "w") as fh:
+            json.dump(
+                {
+                    "config": config["name"],
+                    "seed": args.seed,
+                    "results_path": results_path,
+                    "greedy": {k: v for k, v in final_eval.items()},
+                    "training_criterion": {
+                        "solved": result["solved"],
+                        "episodes_to_solve": result["episodes_to_solve"],
+                        "env_steps_to_solve": result["env_steps_to_solve"],
+                    },
+                    "episodes_run": result["episodes_run"],
+                    "total_env_steps": result["total_env_steps"],
+                    "grad_steps": result["grad_steps"],
+                },
+                fh,
+                indent=2,
+            )
+        print(f"saved final greedy evaluation to {eval_path}")
 
     checkpoint_path = results_path.replace(".csv", "_final.pt")
     torch.save(model.state_dict(), checkpoint_path)

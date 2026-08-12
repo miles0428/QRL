@@ -24,6 +24,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from src.evaluate import run_greedy_rollouts
 from src.replay import ReplayBuffer
 from src.seeds import set_seed
 
@@ -38,6 +39,10 @@ CSV_HEADER = [
     "grad_steps",
     "w",
     "lam",
+    # Greedy (epsilon=0) evaluation, blank except on evaluation episodes. See
+    # the eval_every docstring in train() for why these columns exist at all.
+    "eval_mean_reward",
+    "eval_std_reward",
 ]
 
 
@@ -126,6 +131,9 @@ def train(
     solve_window: int = 100,
     max_steps_per_episode: int = 500,
     max_wall_clock_s: float | None = None,
+    eval_every: int = 50,
+    eval_episodes: int = 5,
+    eval_seed_base: int = 10_000,
     print_every: int = 10,
     verbose: bool = True,
 ) -> dict:
@@ -137,6 +145,28 @@ def train(
     construction with the same seed (see scripts/train.py) -- this function's
     own set_seed() call happens after `model` already exists, so it cannot
     retroactively make the model's initial weights reproducible.
+
+    GREEDY EVALUATION (`eval_every`, in episodes; 0 disables). `episode_reward`
+    and `avg_reward_100` are measured on *exploring* episodes, so they are
+    bounded well below the agent's actual ability whenever epsilon is
+    appreciable: at epsilon=0.13 about one action in eight is random, which on
+    CartPole is enough to topple the pole long before 500 steps no matter how
+    good the policy is. A run can therefore look stuck near 200 while its greedy
+    policy is already near-optimal. Every `eval_every` episodes this runs
+    `eval_episodes` fully greedy rollouts and logs their mean/std, which is the
+    curve to read for policy quality -- and the standard CartPole-v1 solve
+    criterion is defined on greedy play, not on exploring play.
+
+    The evaluation does not perturb training. `run_greedy_rollouts` builds its
+    own environment and seeds it explicitly, and greedy action selection draws
+    no randomness, so the `random` and `torch` streams driving exploration and
+    replay sampling are untouched -- a run with eval_every=0 and a run with
+    eval_every=N produce identical training columns.
+
+    `eval_seed_base` offsets evaluation start states away from the training
+    seeds, and is deliberately *fixed* across evaluations: reusing the same
+    start states every time means successive points on the eval curve differ
+    only by the policy, not by which initial conditions happened to be drawn.
     """
     set_seed(seed)
     env = gym.make(env_id)
@@ -156,6 +186,8 @@ def train(
     solved_at_episode = None
     solved_at_env_steps = None
     solved_at_wall_clock = None
+    last_eval_mean: float | None = None
+    best_eval_mean = float("-inf")
 
     start_time = time.time()
 
@@ -217,6 +249,28 @@ def train(
                 mean_loss = sum(episode_losses) / len(episode_losses) if episode_losses else ""
                 wall_clock_s = time.time() - start_time
 
+                eval_mean: float | str = ""
+                eval_std: float | str = ""
+                if eval_every and (episode + 1) % eval_every == 0:
+                    eval_t0 = time.time()
+                    eval_rewards = run_greedy_rollouts(
+                        model,
+                        n_episodes=eval_episodes,
+                        env_id=env_id,
+                        seed=eval_seed_base,
+                        max_steps_per_episode=max_steps_per_episode,
+                    )
+                    eval_mean = float(np.mean(eval_rewards))
+                    eval_std = float(np.std(eval_rewards))
+                    last_eval_mean = eval_mean
+                    if eval_mean > best_eval_mean:
+                        best_eval_mean = eval_mean
+                    # Push start_time forward by however long evaluation took, so
+                    # wall_clock_s stays a training-only clock. Otherwise turning
+                    # evaluation on would inflate the s/grad-step figures that the
+                    # whole backend comparison rests on.
+                    start_time += time.time() - eval_t0
+
                 writer.writerow(
                     [
                         episode,
@@ -229,15 +283,18 @@ def train(
                         grad_steps,
                         _param_to_str(model, "w"),
                         _param_to_str(model, "lam"),
+                        eval_mean,
+                        eval_std,
                     ]
                 )
                 f.flush()
 
                 if verbose and (episode + 1) % print_every == 0:
+                    eval_note = f" | greedy {eval_mean:.1f}" if eval_mean != "" else ""
                     print(
                         f"episode {episode + 1}/{max_episodes} | reward {episode_reward:.1f} | "
                         f"avg100 {avg_reward_100:.1f} | epsilon {epsilon:.3f} | "
-                        f"grad_steps {grad_steps} | wall_clock {wall_clock_s:.1f}s"
+                        f"grad_steps {grad_steps} | wall_clock {wall_clock_s:.1f}s{eval_note}"
                     )
 
                 if len(reward_window) == solve_window and avg_reward_100 >= solve_threshold:
@@ -260,8 +317,14 @@ def train(
         "episodes_run": episode + 1,
         "total_env_steps": total_env_steps,
         "grad_steps": grad_steps,
+        # "solved" here is the TRAINING criterion: avg reward over the last
+        # `solve_window` *exploring* episodes. It understates the agent, because
+        # those episodes are played with epsilon > 0. The headline claim should
+        # come from the final greedy evaluation in scripts/train.py instead.
         "solved": solved_at_episode is not None,
         "episodes_to_solve": solved_at_episode,
         "env_steps_to_solve": solved_at_env_steps,
         "wall_clock_to_solve_s": solved_at_wall_clock,
+        "last_eval_mean_reward": last_eval_mean,
+        "best_eval_mean_reward": None if best_eval_mean == float("-inf") else best_eval_mean,
     }
