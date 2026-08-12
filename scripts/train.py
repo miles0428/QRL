@@ -153,6 +153,8 @@ def main():
     parser.add_argument("--batch-size", type=int, default=None, help="override config/auto batch size")
     parser.add_argument("--max-wall-clock-s", type=float, default=None, help="safety cutoff, disabled by default")
     parser.add_argument("--tag", type=str, default=None, help="suffix for the results filename")
+    parser.add_argument("--per-layer-encoding", dest="per_layer_encoding", action="store_true", default=None,
+                        help="one input scaling per (layer, qubit) instead of per qubit (reference behaviour)")
     parser.add_argument("--n-envs", type=int, default=None, help="environments stepped in lockstep; >1 batches action selection")
     parser.add_argument("--eval-every", type=int, default=None, help="episodes between greedy evaluations; 0 disables")
     parser.add_argument("--eval-episodes", type=int, default=None, help="rollouts per periodic greedy evaluation")
@@ -173,6 +175,7 @@ def main():
         config["backend"] = args.backend
     for flag, key in (
         (args.n_envs, "n_envs"),
+        (args.per_layer_encoding, "per_layer_encoding"),
         (args.eval_every, "eval_every"),
         (args.eval_episodes, "eval_episodes"),
         (args.final_eval_episodes, "final_eval_episodes"),
