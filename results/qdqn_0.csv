@@ -1,0 +1,2 @@
+episode,total_env_steps,episode_reward,avg_reward_100,epsilon,mean_loss,wall_clock_s,grad_steps,w,lam
+0,9,9.0,9.0,0.999604,,0.003007173538208008,0,"1.000000,1.000000","1.000000,1.000000,1.000000,1.000000"

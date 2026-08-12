@@ -1,0 +1,185 @@
+"""Run a config across multiple seeds (5 minimum, 10 if runtime allows -- per
+evaluation protocol) and aggregate with median + IQR, not mean +- std (single
+seeds are not evidence; DQN variance is enormous).
+
+Performance warning (from the project brief): training is dominated by
+circuit simulation. Before launching the full multi-seed sweep, this script
+times a small number of real gradient steps on the target config, extrapolates
+a projected wall-clock for the requested seed count, and refuses to launch the
+full sweep if that projection exceeds ~6 hours -- printing the numbers and
+stopping instead of running blind. Pass --force to override once you've seen
+the projection and decided to proceed anyway (e.g. after cutting n_layers or
+switching to a shorter max_episodes for a demo run).
+"""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import gymnasium as gym
+import numpy as np
+import pandas as pd
+import torch
+import yaml
+
+from scripts.train import build_model_and_optimizer, print_resolved_versions
+from src.replay import ReplayBuffer
+from src.seeds import set_seed
+from src.trainer import _td_loss, _select_action, train
+
+MAX_WALL_CLOCK_S = 6 * 3600  # ~6 hours, per project brief
+
+
+def time_gradient_steps(config: dict, seed: int, n_probe_steps: int = 100) -> float:
+    """Run n_probe_steps real gradient steps (fresh model/env/buffer) and
+    return the average wall-clock seconds per gradient step."""
+    set_seed(seed)
+    model, optimizer = build_model_and_optimizer(config, seed)
+    target_model = copy.deepcopy(model)
+    target_model.load_state_dict(model.state_dict())
+
+    env = gym.make(config["env_id"])
+    buffer = ReplayBuffer(capacity=config["buffer_capacity"])
+    n_actions = env.action_space.n
+
+    grad_steps = 0
+    obs, _info = env.reset(seed=seed)
+    start = time.time()
+    try:
+        while grad_steps < n_probe_steps:
+            action = _select_action(model, obs, epsilon=1.0, n_actions=n_actions)
+            next_obs, reward, terminated, truncated, _info = env.step(action)
+            done = terminated or truncated
+            buffer.push(obs, action, reward, next_obs, float(done))
+            obs = next_obs if not done else env.reset(seed=seed)[0]
+
+            if len(buffer) >= max(config["min_buffer_size"], config["batch_size"]):
+                batch = buffer.sample(config["batch_size"])
+                loss = _td_loss(model, target_model, batch, config["gamma"])
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                grad_steps += 1
+    finally:
+        env.close()
+
+    return (time.time() - start) / grad_steps
+
+
+def project_wall_clock(config: dict, seconds_per_grad_step: float, n_seeds: int) -> dict:
+    max_episodes = config["max_episodes"]
+    max_steps = config["max_steps_per_episode"]
+
+    # Worst case: every episode runs to max_steps_per_episode.
+    worst_case_grad_steps_per_seed = max_episodes * max_steps
+    worst_case_s = worst_case_grad_steps_per_seed * seconds_per_grad_step * n_seeds
+
+    # Rough heuristic case: average ~150 env steps/episode (short random early
+    # episodes ~20-50 steps, longer near-solved episodes up to 500) -- a guess,
+    # not a tuned estimate; flagged as such.
+    heuristic_avg_steps_per_episode = 150
+    heuristic_grad_steps_per_seed = max_episodes * heuristic_avg_steps_per_episode
+    heuristic_s = heuristic_grad_steps_per_seed * seconds_per_grad_step * n_seeds
+
+    return {
+        "seconds_per_grad_step": seconds_per_grad_step,
+        "worst_case_hours": worst_case_s / 3600,
+        "heuristic_hours": heuristic_s / 3600,
+    }
+
+
+def aggregate_results(csv_paths: list[str]) -> pd.DataFrame:
+    frames = []
+    for path in csv_paths:
+        df = pd.read_csv(path)
+        df["seed"] = Path(path).stem.rsplit("_", 1)[-1]
+        frames.append(df)
+    return pd.concat(frames, ignore_index=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Sweep a config across multiple seeds")
+    parser.add_argument("--config", type=str, required=True)
+    parser.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 4])
+    parser.add_argument("--results-dir", type=str, default="results")
+    parser.add_argument("--probe-steps", type=int, default=100)
+    parser.add_argument("--max-episodes", type=int, default=None, help="override config's max_episodes (e.g. for a bounded smoke test)")
+    parser.add_argument("--force", action="store_true", help="launch the full sweep even if the projected wall-clock exceeds ~6h")
+    args = parser.parse_args()
+
+    print_resolved_versions()
+
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+    if args.max_episodes is not None:
+        config["max_episodes"] = args.max_episodes
+
+    print(f"\n=== timing probe: {args.probe_steps} real gradient steps on seed {args.seeds[0]} ===")
+    seconds_per_step = time_gradient_steps(config, args.seeds[0], n_probe_steps=args.probe_steps)
+    projection = project_wall_clock(config, seconds_per_step, len(args.seeds))
+
+    print(f"measured: {seconds_per_step:.3f}s / gradient step")
+    print(
+        f"projected wall-clock for {len(args.seeds)} seeds of '{config['name']}' "
+        f"({config['max_episodes']} episodes each):"
+    )
+    print(f"  worst case (every episode hits max_steps_per_episode): {projection['worst_case_hours']:.1f} hours")
+    print(f"  rough heuristic (~150 env steps/episode average, unverified guess): {projection['heuristic_hours']:.1f} hours")
+
+    if min(projection["worst_case_hours"], projection["heuristic_hours"]) * 3600 > MAX_WALL_CLOCK_S and not args.force:
+        print(
+            f"\nSTOPPING: projected wall-clock exceeds ~6 hours even under the optimistic "
+            f"heuristic estimate. Not launching the full sweep blind, per the project brief.\n"
+            f"Options: cut n_layers in {args.config}, reduce max_episodes, reduce --seeds, "
+            f"or re-run this script with --force once you've decided how to proceed."
+        )
+        return
+
+    print(f"\n=== launching {len(args.seeds)}-seed sweep ===")
+    csv_paths = []
+    for seed in args.seeds:
+        set_seed(seed)
+        model, optimizer = build_model_and_optimizer(config, seed)
+        results_path = f"{args.results_dir}/{config['name']}_{seed}.csv"
+        print(f"\n--- seed {seed} ---")
+        result = train(
+            model,
+            optimizer,
+            results_path=results_path,
+            seed=seed,
+            env_id=config["env_id"],
+            max_episodes=config["max_episodes"],
+            gamma=config["gamma"],
+            batch_size=config["batch_size"],
+            buffer_capacity=config["buffer_capacity"],
+            min_buffer_size=config["min_buffer_size"],
+            target_update_every=config["target_update_every"],
+            epsilon_start=config["epsilon_start"],
+            epsilon_end=config["epsilon_end"],
+            epsilon_decay_steps=config["epsilon_decay_steps"],
+            solve_threshold=config["solve_threshold"],
+            solve_window=config["solve_window"],
+            max_steps_per_episode=config["max_steps_per_episode"],
+        )
+        csv_paths.append(results_path)
+        print(result)
+
+        final_path = results_path.replace(".csv", "_final.pt")
+        torch.save(model.state_dict(), final_path)
+        print(f"saved final model weights to {final_path}")
+
+    agg = aggregate_results(csv_paths)
+    summary = agg.groupby("episode")["episode_reward"].agg(["median"]).reset_index()
+    print("\n=== aggregate (median reward per episode, first/last 5) ===")
+    print(summary.head())
+    print(summary.tail())
+
+
+if __name__ == "__main__":
+    main()

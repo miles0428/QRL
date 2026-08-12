@@ -1,0 +1,29 @@
+# Classical control: MLP Q-function, parameter-count matched to configs/qdqn.yaml's
+# VQC (46 params: 40 circuit + 4 lam + 2 w) within +-20%. hidden=6 gives 44 params --
+# see README for the derivation. Same trainer, same hyperparameters as qdqn.yaml
+# wherever they're not architecture-specific, for a fair comparison.
+name: mlp_baseline
+model: mlp
+
+# --- model architecture ---
+hidden: 6   # 7*hidden + 2 params = 44 at hidden=6, vs VQC's 46
+
+# --- single parameter group ---
+lr: 1.0e-3
+
+# --- DQN hyperparameters (identical to configs/qdqn.yaml) ---
+gamma: 0.99
+batch_size: 16
+buffer_capacity: 10000
+min_buffer_size: 16
+target_update_every: 30
+epsilon_start: 1.0
+epsilon_end: 0.01
+epsilon_decay_steps: 20000
+max_episodes: 2000
+max_steps_per_episode: 500
+
+# --- evaluation ---
+solve_threshold: 475.0
+solve_window: 100
+env_id: CartPole-v1

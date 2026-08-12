@@ -1,0 +1,33 @@
+# Quantum agent: VQC Q-function.
+# Hyperparameters below are starting points from the Skolik, Jerbi & Dunjko
+# (2022) recipe (https://arxiv.org/abs/2103.15084), not tuned results -- flagged
+# here rather than presented as settled, per project working-style guidance.
+name: qdqn
+model: vqc
+
+# --- model architecture ---
+n_qubits: 4
+n_layers: 5          # GUESS: Skolik et al. use varying depth per task; 5 is a starting point
+reuploading: false    # advanced ablation is a config flip to true, not a rewrite
+
+# --- three parameter groups, three learning rates (see src/models/vqc.py docstring) ---
+lr_lam: 1.0e-3         # input scaling
+lr_vqc: 1.0e-3         # variational circuit weights
+lr_w: 1.0e-1           # output scaling -- much larger; needs to move from 1 -> ~tens quickly
+
+# --- DQN hyperparameters ---
+gamma: 0.99
+batch_size: 16         # deliberately small: every forward pass is a circuit simulation
+buffer_capacity: 10000
+min_buffer_size: 16
+target_update_every: 30   # gradient steps (hard update), not episodes
+epsilon_start: 1.0
+epsilon_end: 0.01
+epsilon_decay_steps: 20000  # environment steps, linear decay
+max_episodes: 2000
+max_steps_per_episode: 500
+
+# --- evaluation ---
+solve_threshold: 475.0
+solve_window: 100
+env_id: CartPole-v1
