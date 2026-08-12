@@ -1,0 +1,42 @@
+# Classical MLP baseline for CartPole-v1.
+# The whole point of this baseline is a FAIR comparison: the MLP is parameter-count
+# matched to the VQC (~46 trainable params), not a 17k-param 2x128 net. See README.
+#
+# VQC trainable params = 40 variational (5 layers x 4 qubits x 2 angles)
+#                        + 4 input scalings (lam) + 2 output scalings (w) = 46.
+# MLP with one hidden layer of width h: params = 7h + 2  (4->h->2 with biases).
+#   h=6 -> 44 params (within +/-20% of 46). See src/models/mlp.py for the exact count.
+
+name: mlp
+
+model:
+  type: mlp                      # selects src/models/mlp.py via the factory
+  hidden_dims: [6]               # param-matched to the VQC; verified/printed at build time
+  activation: relu
+  lr: 1.0e-3                     # single group; classical net has no scaling params
+
+# Same normalization the VQC uses, so the comparison isolates the approximator,
+# not the input pipeline.
+normalization:
+  cart_position_bound: 2.4
+  pole_angle_bound: 0.2095
+  velocity_transform: arctan
+
+trainer:
+  gamma: 0.99
+  batch_size: 16                 # matched to the QDQN for an apples-to-apples curve
+  replay_capacity: 10000
+  learning_starts: 1000
+  train_every: 1
+  target_update_interval: 30
+  epsilon:
+    start: 1.0
+    end: 0.01
+    decay_env_steps: 20000
+  max_episodes: 2000
+  grad_clip_norm: null
+
+eval:
+  solve_reward: 475.0
+  solve_window: 100
+  final_greedy_episodes: 100

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual env
+.venv/
+venv/
+
+# Install/run logs (kept out of git; results/ CSVs are the reproducible artifacts)
+*.log
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep results/ and figures/ dirs but not necessarily every artifact.
+# We DO track csv results and generated figures by default (they are the deliverable),
+# so nothing under results/ or figures/ is ignored here. Uncomment to change:
+# results/*.csv
+# figures/*

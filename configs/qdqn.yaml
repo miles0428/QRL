@@ -1,0 +1,52 @@
+# Quantum DQN agent for CartPole-v1.
+# Values are the Skolik et al. (2022) recipe starting points, NOT tuned results.
+# See README references. Comments flag which numbers are guesses.
+
+name: qdqn                       # used for results/{name}_{seed}.csv
+
+model:
+  type: vqc                      # selects src/models/vqc.py via the factory
+  n_qubits: 4                    # one per CartPole observation dimension
+  n_layers: 5                    # variational layers (Skolik uses 5); a guess for CartPole
+  reuploading: false             # false = encode once before layer 0 (fundamental run).
+                                 # true = re-encode every layer (advanced ablation). Config flag only.
+  gradient: reverse              # reverse (adjoint, simulator-only, exact) | paramshift (hardware-ready)
+  # One Z observable per action -> n_actions expectation values in [-1, 1].
+  # Given as explicit qubit indices (NOT Pauli-label strings) on purpose: Qiskit
+  # Pauli labels are little-endian, so "ZIII" would be Z on qubit 3, not qubit 0 --
+  # a classic silent bug. vqc.py builds SparsePauliOp.from_sparse_list from these.
+  observable_qubits: [0, 1]      # action 0 <- <Z on qubit 0>, action 1 <- <Z on qubit 1>
+
+  # Three parameter groups, three learning rates (see README Failure Mode 1).
+  # The output scaling `w` MUST train much faster than the circuit params or the
+  # value function (Q up to ~100 at gamma=0.99) can never be represented.
+  lr:
+    input_scaling: 1.0e-3        # lam: trainable arctan input scaling
+    variational: 1.0e-3          # the VQC RY/RZ angles
+    output_scaling: 1.0e-1       # w: trainable output scaling -- deliberately 100x larger
+
+normalization:
+  # Cart position and pole angle are divided by their termination bounds.
+  # Velocities are unbounded -> squashed with arctan (never raw division).
+  cart_position_bound: 2.4       # CartPole x termination bound
+  pole_angle_bound: 0.2095       # CartPole theta termination bound (~12 deg in rad)
+  velocity_transform: arctan     # arctan | tanh, applied to the two velocity dims
+
+trainer:
+  gamma: 0.99
+  batch_size: 16                 # small on purpose: each forward pass is a circuit sim
+  replay_capacity: 10000
+  learning_starts: 1000          # min replay entries before first gradient step (guess)
+  train_every: 1                 # gradient steps per env step
+  target_update_interval: 30     # hard target-network copy every N gradient steps
+  epsilon:
+    start: 1.0
+    end: 0.01
+    decay_env_steps: 20000       # linear decay over first 20k env steps
+  max_episodes: 2000             # or until solved, whichever first
+  grad_clip_norm: null           # null = off; a guess if training is unstable
+
+eval:
+  solve_reward: 475.0            # mean over 100 consecutive episodes -> solved
+  solve_window: 100
+  final_greedy_episodes: 100     # epsilon = 0 evaluation at the end
