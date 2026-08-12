@@ -387,6 +387,7 @@ class VQCQFunction(QFunction):
         gradient_method: str = DEFAULT_GRADIENT_METHOD,
         estimator=None,
         seed: int | None = None,
+        output_rescaling: bool = True,
     ):
         super().__init__()
         observables = tuple(observables)
@@ -405,6 +406,7 @@ class VQCQFunction(QFunction):
         self.observables = observables
         self.backend_name = backend
         self.gradient_method = gradient_method
+        self.output_rescaling = output_rescaling
 
         # Outside-the-circuit trainable scalings (Failure Modes 1 and 2 above).
         self.lam = nn.Parameter(torch.ones(n_qubits))
@@ -435,7 +437,15 @@ class VQCQFunction(QFunction):
     def forward(self, states: torch.Tensor) -> torch.Tensor:
         normalized = normalize_observation(states)  # [B, n_qubits]
         scaled = self.lam * normalized  # elementwise, plain torch -- outside the circuit
-        raw_out = self.vqc(scaled)  # [B, n_actions]
+        raw_out = self.vqc(scaled)  # [B, n_actions], each in [-1, 1]
+        if self.output_rescaling:
+            # Map [-1, 1] -> [0, 1] BEFORE applying w. CartPole returns are all
+            # non-negative and Q* at gamma=0.99 is ~99, so on [0, 1] a weight
+            # near 100 suffices. Multiplying w against [-1, 1] instead is why w
+            # drifted to 300-500 in earlier runs: representing Q~100 from an
+            # expectation value of ~0.2 requires w~500. Same expressivity, very
+            # different gradient scale -- and half the output range unused.
+            raw_out = (raw_out + 1.0) / 2.0
         return raw_out * self.w
 
     # --- backend-neutral weight transfer -------------------------------------

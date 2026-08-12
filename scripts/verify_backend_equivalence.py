@@ -70,6 +70,22 @@ def reference_expectations(
     return out
 
 
+def _apply_output_head(raw: np.ndarray, w, model) -> np.ndarray:
+    """Everything VQCQFunction.forward does AFTER the circuit, mirrored here.
+
+    The circuit returns expectation values in [-1, 1]; the model then optionally
+    maps them to [0, 1] and scales by w. This has to track forward() exactly --
+    when output_rescaling was added, this reference did not follow and the check
+    reported a 2.576 mismatch against a simulator that was in fact correct.
+    A reference that silently drifts from the thing it certifies is worse than
+    no reference, so the post-circuit head lives in one function used by both
+    the forward and the finite-difference checks.
+    """
+    if getattr(model, "output_rescaling", False):
+        raw = (raw + 1.0) / 2.0
+    return raw * w.detach().numpy()
+
+
 def finite_difference_gradients(
     model, states: torch.Tensor, eps: float = 1e-3
 ) -> dict[str, np.ndarray]:
@@ -89,7 +105,7 @@ def finite_difference_gradients(
             states, lam, weights, model.n_qubits, model.n_layers,
             model.reuploading, model.observables,
         )
-        return float(np.sum(raw * w.detach().numpy()))
+        return float(np.sum(_apply_output_head(raw, w, model)))
 
     grads: dict[str, np.ndarray] = {}
     for name, base in (("lam", lam0), ("circuit", weights0), ("w", w0)):
@@ -190,7 +206,7 @@ def main() -> int:
         model.reuploading,
         model.observables,
     )
-    ref = raw_ref * model.w.detach().numpy()
+    ref = _apply_output_head(raw_ref, model.w, model)
 
     max_abs = float(np.max(np.abs(got - ref)))
     print(f"backend:      {args.backend} (gradient={method})")

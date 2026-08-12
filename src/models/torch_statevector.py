@@ -371,8 +371,20 @@ def simulate(
                 for slot, i in enumerate(positions):
                     mats[i] = built[:, slot]
 
+            # Fuse each qubit's rotations into a single 2x2 before touching the
+            # state. Gates applied in order g1,g2,g3 compose as M3 @ M2 @ M1, and
+            # a 2x2 product is far cheaper than an extra pass over the state
+            # tensor (which costs a movedim + reshape + matmul + reshape each).
+            # In this circuit every qubit carries 3 rotations per stage, so this
+            # turns 12 state passes into 4.
+            per_qubit: dict[int, torch.Tensor] = {}
             for i, (qubit, _, _, _) in enumerate(entries):
-                state = _apply_1q(state, mats[i], qubit, n)
+                m = mats[i]
+                prev = per_qubit.get(qubit)
+                per_qubit[qubit] = m if prev is None else m @ prev
+
+            for qubit, mat in per_qubit.items():
+                state = _apply_1q(state, mat, qubit, n)
 
         else:  # const1q
             _, qubit, matrix = stage

@@ -38,6 +38,9 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("trainer", "buffer_capacity"): "buffer_capacity",
     ("trainer", "min_buffer_size"): "min_buffer_size",
     ("trainer", "target_update_every"): "target_update_every",
+    ("trainer", "steps_per_update"): "steps_per_update",
+    ("trainer", "loss_fn"): "loss_fn",
+    ("model", "output_rescaling"): "output_rescaling",
     ("trainer", "eps_schedule"): "epsilon_schedule",
     ("trainer", "eps_init"): "epsilon_start",
     ("trainer", "eps_min"): "epsilon_end",
@@ -85,6 +88,13 @@ DEFAULTS: dict[str, Any] = {
     "epsilon_decay": 0.99,
     "epsilon_decay_steps": 20_000,
     # Quantum-only; ignored by the MLP path.
+    # Reference-implementation values (TFQ tutorial / Skolik et al.), adopted
+    # after the 10-minute convergence requirement landed. steps_per_update is
+    # also the single largest wall-clock lever: a gradient step costs far more
+    # than an environment step when the Q-function is a circuit.
+    "steps_per_update": 10,
+    "loss_fn": "huber",
+    "output_rescaling": True,
     "reuploading": True,
     "observables": ["ZZII", "IIZZ"],
     # v3 training backend. Not qtm: see the backend note in configs/qdqn.yaml.

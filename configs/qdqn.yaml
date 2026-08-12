@@ -23,6 +23,11 @@ model:
   # on observable choice; two-qubit tensor products let each observable read
   # more of the register than a single-qubit Z does.
   observables: ["ZZII", "IIZZ"]
+  # Map <O> from [-1,1] to [0,1] before applying w, as the reference does.
+  # CartPole returns are non-negative and Q* ~ 99, so on [0,1] a weight near 100
+  # suffices; on [-1,1] representing Q~100 from <O>~0.2 needs w~500, which is
+  # exactly the drift observed in the pre-rescaling runs.
+  output_rescaling: true
 
 trainer:
   # v3: was 2000. The old budget was never enough to observe convergence.
@@ -40,9 +45,17 @@ trainer:
   gamma: 0.99
   buffer_capacity: 10000
   min_buffer_size: 16
-  # v3: was 30 (gradient steps). The reference uses 1 -- our target network
-  # was far too stale.
-  target_update_every: 1
+  # v3: was 30 (gradient steps). Set to 1 initially, which is effectively NO
+  # target network. The reference trains every 10 env steps and syncs the target
+  # every 30, i.e. every ~3 gradient steps -- restored here.
+  target_update_every: 3
+  # Reference value (TFQ tutorial: steps_per_update=10). Also the single largest
+  # wall-clock lever: a gradient step costs far more than an environment step
+  # when the Q-function is a circuit, so this cuts ~10x off training time.
+  steps_per_update: 10
+  # Reference uses Huber. MSE let single large TD errors dominate the batch --
+  # observed mean losses in the hundreds with Q-values reaching ~100.
+  loss_fn: huber
   # v3: was linear-in-env-steps. The reference decays epsilon once per episode
   # by a constant factor. 0.99^n reaches 0.01 after ~458 episodes.
   eps_schedule: exponential_episodes

@@ -80,6 +80,7 @@ def build_model_and_optimizer(config: dict, seed: int):
             observables=config["observables"],
             backend=config["backend"],
             gradient_method=config["gradient_method"],
+            output_rescaling=config["output_rescaling"],
             seed=seed,
         )
         optimizer = torch.optim.Adam(
@@ -111,6 +112,8 @@ def train_from_config(config: dict, seed: int, results_path: str, **overrides):
         buffer_capacity=config["buffer_capacity"],
         min_buffer_size=config["min_buffer_size"],
         target_update_every=config["target_update_every"],
+        steps_per_update=config["steps_per_update"],
+        loss_fn=config["loss_fn"],
         epsilon_schedule=config["epsilon_schedule"],
         epsilon_start=config["epsilon_start"],
         epsilon_end=config["epsilon_end"],

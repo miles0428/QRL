@@ -91,7 +91,7 @@ def _select_action(model: nn.Module, state: np.ndarray, epsilon: float, n_action
         return int(torch.argmax(q_values, dim=1).item())
 
 
-def _td_loss(policy_model, target_model, batch, gamma: float) -> torch.Tensor:
+def _td_loss(policy_model, target_model, batch, gamma: float, loss_fn: str = "mse") -> torch.Tensor:
     states, actions, rewards, next_states, dones = batch
     states_t = torch.as_tensor(states, dtype=torch.float32)
     actions_t = torch.as_tensor(actions, dtype=torch.int64)
@@ -107,7 +107,15 @@ def _td_loss(policy_model, target_model, batch, gamma: float) -> torch.Tensor:
         next_q_max = next_q.max(dim=1).values
         td_target = rewards_t + gamma * next_q_max * (1.0 - dones_t)
 
-    return nn.functional.mse_loss(q_taken, td_target)
+    if loss_fn == "huber":
+        # Linear beyond |error| = 1 instead of quadratic, so a single large TD
+        # error cannot dominate the batch. The reference implementation uses this
+        # and we did not; with Q-values reaching ~100 and observed mean losses in
+        # the hundreds, MSE was letting outliers drive the update.
+        return nn.functional.smooth_l1_loss(q_taken, td_target)
+    if loss_fn == "mse":
+        return nn.functional.mse_loss(q_taken, td_target)
+    raise ValueError(f"unknown loss_fn {loss_fn!r}; expected 'huber' or 'mse'")
 
 
 def train(
@@ -121,6 +129,8 @@ def train(
     batch_size: int = 16,
     buffer_capacity: int = 10_000,
     min_buffer_size: int = 16,
+    steps_per_update: int = 1,  # environment steps between gradient steps
+    loss_fn: str = "mse",  # "mse" | "huber"
     target_update_every: int = 1,  # gradient steps, per spec (not episodes)
     epsilon_schedule: str = "exponential_episodes",
     epsilon_start: float = 1.0,
@@ -220,9 +230,17 @@ def train(
                     episode_reward += reward
                     total_env_steps += 1
 
-                    if len(buffer) >= max(min_buffer_size, batch_size):
+                    # steps_per_update > 1 trains on every Nth environment step
+                    # rather than every one. The reference uses 10. Beyond being
+                    # the reference value it is the single largest lever on
+                    # wall-clock here, since a gradient step costs far more than
+                    # an environment step when the Q-function is a circuit.
+                    if (
+                        len(buffer) >= max(min_buffer_size, batch_size)
+                        and total_env_steps % steps_per_update == 0
+                    ):
                         batch = buffer.sample(batch_size)
-                        loss = _td_loss(model, target_model, batch, gamma)
+                        loss = _td_loss(model, target_model, batch, gamma, loss_fn)
 
                         optimizer.zero_grad()
                         loss.backward()
