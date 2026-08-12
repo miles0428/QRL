@@ -52,6 +52,7 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("optim", "lr_input_scaling"): "lr_lam",
     ("optim", "lr_output_scaling"): "lr_w",
     ("optim", "lr"): "lr",
+    ("optim", "amsgrad"): "amsgrad",
     ("gradient", "method"): "gradient_method",
     ("gradient", "backend"): "backend",
     ("eval", "solve_threshold"): "solve_threshold",
@@ -93,6 +94,7 @@ DEFAULTS: dict[str, Any] = {
     # after the 10-minute convergence requirement landed. steps_per_update is
     # also the single largest wall-clock lever: a gradient step costs far more
     # than an environment step when the Q-function is a circuit.
+    "amsgrad": True,
     "n_envs": 1,
     "steps_per_update": 10,
     "loss_fn": "huber",

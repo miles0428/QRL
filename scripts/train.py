@@ -83,18 +83,23 @@ def build_model_and_optimizer(config: dict, seed: int):
             output_rescaling=config["output_rescaling"],
             seed=seed,
         )
+        # amsgrad is the reference implementation's setting (all three of its
+        # optimizers use it). It keeps the max of past squared gradients rather
+        # than an exponential average, so the effective step size cannot grow
+        # again after a large gradient -- relevant here, where TD errors spike.
         optimizer = torch.optim.Adam(
             [
                 {"params": [model.lam], "lr": config["lr_lam"]},
                 {"params": list(model.vqc.parameters()), "lr": config["lr_vqc"]},
                 {"params": [model.w], "lr": config["lr_w"]},
-            ]
+            ],
+            amsgrad=config["amsgrad"],
         )
     elif config["model_type"] == "mlp":
         from src.models.mlp import MLPQFunction
 
         model = MLPQFunction(hidden=config["hidden"])
-        optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+        optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], amsgrad=config["amsgrad"])
     else:
         raise ValueError(f"unknown model type: {config['model_type']}")
 
