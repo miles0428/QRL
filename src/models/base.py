@@ -53,3 +53,13 @@ class QFunction(ABC, nn.Module):
     def num_trainable_params(self) -> int:
         """Total number of trainable scalar parameters (used for baseline matching)."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def loggable_scalars(self) -> dict[str, float]:
+        """Model-specific scalars to append as CSV columns each episode.
+
+        Default: none. The VQC overrides this to expose ``w0, w1, lam0..lam3`` so the
+        trainer can log the output/input scalings (the direct evidence for Failure
+        Mode 1) WITHOUT the trainer knowing those parameters exist. The MLP leaves it
+        empty, so its CSV simply has no such columns.
+        """
+        return {}
