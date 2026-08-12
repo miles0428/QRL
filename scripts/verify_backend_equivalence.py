@@ -51,12 +51,18 @@ def reference_expectations(
     n_layers: int,
     reuploading: bool,
     observables,
+    per_layer_encoding: bool = False,
 ) -> np.ndarray:
     """Ground truth: plain qiskit Statevector, no EstimatorQNN, no torch."""
-    circuit, input_params, weight_params = build_circuit(n_qubits, n_layers, reuploading)
+    circuit, input_params, weight_params = build_circuit(
+        n_qubits, n_layers, reuploading, per_layer_encoding=per_layer_encoding
+    )
     ops = [SparsePauliOp(o) for o in observables]
 
-    scaled = (lam * normalize_observation(states)).detach().numpy()
+    normalized = normalize_observation(states)
+    if len(input_params) != normalized.shape[1]:
+        normalized = normalized.tile(1, len(input_params) // normalized.shape[1])
+    scaled = (lam * normalized).detach().numpy()
     weights = circuit_weights.detach().numpy()
 
     out = np.zeros((states.shape[0], len(ops)))
@@ -104,6 +110,7 @@ def finite_difference_gradients(
         raw = reference_expectations(
             states, lam, weights, model.n_qubits, model.n_layers,
             model.reuploading, model.observables,
+            getattr(model, "per_layer_encoding", False),
         )
         return float(np.sum(_apply_output_head(raw, w, model)))
 
@@ -156,6 +163,7 @@ def check_gradients(model, states: torch.Tensor, tol: float) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", default="torch_sv")
+    parser.add_argument("--per-layer-encoding", action="store_true")
     parser.add_argument("--gradient-method", default=None)
     parser.add_argument("--batch", type=int, default=8)
     parser.add_argument("--tol", type=float, default=1e-5)
@@ -183,7 +191,8 @@ def main() -> int:
     method = args.gradient_method or ("param_shift" if args.backend == "qiskit_ml" else "adjoint")
 
     torch.manual_seed(0)
-    model = VQCQFunction(backend=args.backend, gradient_method=method, seed=0)
+    model = VQCQFunction(backend=args.backend, gradient_method=method, seed=0,
+                         per_layer_encoding=args.per_layer_encoding)
 
     # Spread across the state space, not clustered near zero: an ordering bug on
     # a near-identity circuit can hide when every input is tiny.
@@ -192,7 +201,7 @@ def main() -> int:
 
     # Give lam and w non-trivial values so a mis-scaling cannot cancel out.
     with torch.no_grad():
-        model.lam.copy_(torch.linspace(0.4, 1.6, model.n_qubits))
+        model.lam.copy_(torch.linspace(0.4, 1.6, model.lam.numel()))
         model.w.copy_(torch.tensor([2.0, -3.0]))
 
     got = model(states).detach().numpy()
@@ -205,6 +214,7 @@ def main() -> int:
         model.n_layers,
         model.reuploading,
         model.observables,
+        getattr(model, "per_layer_encoding", False),
     )
     ref = _apply_output_head(raw_ref, model.w, model)
 

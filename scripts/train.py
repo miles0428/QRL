@@ -81,6 +81,7 @@ def build_model_and_optimizer(config: dict, seed: int):
             backend=config["backend"],
             gradient_method=config["gradient_method"],
             output_rescaling=config["output_rescaling"],
+            per_layer_encoding=config["per_layer_encoding"],
             seed=seed,
         )
         # amsgrad is the reference implementation's setting (all three of its

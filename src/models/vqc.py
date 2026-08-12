@@ -118,6 +118,7 @@ def build_circuit(
     n_qubits: int = 4,
     n_layers: int = 5,
     reuploading: bool = True,
+    per_layer_encoding: bool = False,
 ) -> tuple[QuantumCircuit, list, list]:
     """Build the RY-encoding / RY+RZ-variational / CNOT-ring circuit.
 
@@ -125,14 +126,22 @@ def build_circuit(
     n_layers * n_qubits * 2 entries, in circuit order (see
     CIRCUIT_WEIGHT_ORDER) -- explicitly *not* qiskit's alphabetical default.
     """
-    input_params = ParameterVector("x", n_qubits)
+    # With per_layer_encoding the same observation is re-uploaded through a
+    # DIFFERENT circuit parameter at each layer, so the input scaling `lam` can
+    # weight each re-upload independently -- n_layers * n_qubits scalings rather
+    # than n_qubits shared across layers. This is what the reference
+    # implementation does (20 values at 5 layers x 4 qubits, against our 4), and
+    # it only means anything when reuploading is on.
+    n_encoding = n_qubits * n_layers if (per_layer_encoding and reuploading) else n_qubits
+    input_params = ParameterVector("x", n_encoding)
     circuit = QuantumCircuit(n_qubits)
     weight_params: list = []
 
     for layer in range(n_layers):
         if layer == 0 or reuploading:
+            base = layer * n_qubits if n_encoding > n_qubits else 0
             for q in range(n_qubits):
-                circuit.ry(input_params[q], q)
+                circuit.ry(input_params[base + q], q)
 
         ry = ParameterVector(f"ry{layer}", n_qubits)
         rz = ParameterVector(f"rz{layer}", n_qubits)
@@ -388,6 +397,7 @@ class VQCQFunction(QFunction):
         estimator=None,
         seed: int | None = None,
         output_rescaling: bool = True,
+        per_layer_encoding: bool = False,
     ):
         super().__init__()
         observables = tuple(observables)
@@ -407,12 +417,18 @@ class VQCQFunction(QFunction):
         self.backend_name = backend
         self.gradient_method = gradient_method
         self.output_rescaling = output_rescaling
+        self.per_layer_encoding = per_layer_encoding
+
+        circuit, input_params, weight_params = build_circuit(
+            n_qubits, n_layers, reuploading, per_layer_encoding=per_layer_encoding
+        )
 
         # Outside-the-circuit trainable scalings (Failure Modes 1 and 2 above).
-        self.lam = nn.Parameter(torch.ones(n_qubits))
+        # One entry per encoding parameter: n_qubits when the observation is
+        # uploaded once and reused, or n_qubits * n_layers when each re-upload
+        # gets its own circuit parameter (per_layer_encoding).
+        self.lam = nn.Parameter(torch.ones(len(input_params)))
         self.w = nn.Parameter(torch.ones(n_actions))
-
-        circuit, input_params, weight_params = build_circuit(n_qubits, n_layers, reuploading)
         self.circuit = circuit
         self._input_params = input_params
         self._weight_params = weight_params
@@ -436,6 +452,11 @@ class VQCQFunction(QFunction):
 
     def forward(self, states: torch.Tensor) -> torch.Tensor:
         normalized = normalize_observation(states)  # [B, n_qubits]
+        if self.per_layer_encoding and self.lam.numel() != normalized.shape[1]:
+            # Repeat the observation once per layer so each re-upload can be
+            # scaled independently. tile, not repeat_interleave: the circuit
+            # parameter order is (layer-major, qubit-minor).
+            normalized = normalized.tile(1, self.lam.numel() // normalized.shape[1])
         scaled = self.lam * normalized  # elementwise, plain torch -- outside the circuit
         raw_out = self.vqc(scaled)  # [B, n_actions], each in [-1, 1]
         if self.output_rescaling:

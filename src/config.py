@@ -42,6 +42,7 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("trainer", "n_envs"): "n_envs",
     ("trainer", "loss_fn"): "loss_fn",
     ("model", "output_rescaling"): "output_rescaling",
+    ("model", "per_layer_encoding"): "per_layer_encoding",
     ("trainer", "eps_schedule"): "epsilon_schedule",
     ("trainer", "eps_init"): "epsilon_start",
     ("trainer", "eps_min"): "epsilon_end",
@@ -99,6 +100,7 @@ DEFAULTS: dict[str, Any] = {
     "steps_per_update": 10,
     "loss_fn": "huber",
     "output_rescaling": True,
+    "per_layer_encoding": False,
     "reuploading": True,
     "observables": ["ZZII", "IIZZ"],
     # v3 training backend. Not qtm: see the backend note in configs/qdqn.yaml.
