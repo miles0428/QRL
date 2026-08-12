@@ -60,6 +60,74 @@ def dqn_update(model, target, buffer, batch_size, gamma, optimizer, grad_clip) -
     return float(loss.detach())
 
 
+def build_spsa_state(model: QFunction, spsa_cfg: dict) -> dict:
+    """Build SPSA optimizer state. Reuses the model's param-group learning rates as
+    per-parameter gain SCALES, so the output scaling `w` still moves ~100x faster than
+    the circuit params (the three-lr structure is preserved for the gradient-free path).
+    """
+    lr_by_id = {id(p): float(g["lr"]) for g in model.param_groups() for p in g["params"]}
+    scales = [lr_by_id.get(id(p), 1.0) for p in model.parameters()]
+    return {
+        "k": 0,
+        "a": float(spsa_cfg.get("a", 0.05)),        # GUESS -- tuned in the ablation
+        "c": float(spsa_cfg.get("c", 0.1)),          # GUESS
+        "alpha": float(spsa_cfg.get("alpha", 0.602)),  # Spall recommended
+        "gamma": float(spsa_cfg.get("gamma", 0.101)),  # Spall recommended
+        "A": float(spsa_cfg.get("A", 100.0)),
+        "resamplings": int(spsa_cfg.get("resamplings", 1)),
+        "scales": scales,
+    }
+
+
+def spsa_update(model, target, buffer, batch_size, gamma, spsa) -> float:
+    """One SPSA (gradient-free) DQN update: FORWARD-ONLY (no autograd backward).
+
+    Estimates the gradient of the TD loss from 2*resamplings forward passes with a
+    single simultaneous +-1 perturbation of ALL parameters. Crucially the minibatch AND
+    the target values `y` are held FIXED across the +/- evaluations, so the finite
+    difference is not corrupted by different data. Fast here precisely because it avoids
+    the expensive Qiskit reverse-gradient backward.
+    """
+    params = list(model.parameters())
+    batch = buffer.sample(batch_size)
+    with torch.no_grad():
+        y = batch.rewards + gamma * (1.0 - batch.dones) * target(batch.next_states).max(dim=1).values
+
+    k = spsa["k"]
+    ck = spsa["c"] / (k + 1) ** spsa["gamma"]
+    ak = spsa["a"] / (k + 1 + spsa["A"]) ** spsa["alpha"]
+    orig = [p.detach().clone() for p in params]
+
+    def loss_forward() -> float:
+        with torch.no_grad():
+            q = model(batch.states).gather(1, batch.actions.view(-1, 1)).squeeze(1)
+            return float(F.mse_loss(q, y))
+
+    accum = [torch.zeros_like(p) for p in params]
+    last_loss = 0.0
+    R = spsa["resamplings"]
+    for _ in range(R):
+        deltas = [(torch.randint(0, 2, p.shape, dtype=torch.float32) * 2 - 1) for p in params]
+        with torch.no_grad():
+            for p, o, d in zip(params, orig, deltas):
+                p.copy_(o + ck * d)
+        lp = loss_forward()
+        with torch.no_grad():
+            for p, o, d in zip(params, orig, deltas):
+                p.copy_(o - ck * d)
+        lm = loss_forward()
+        ghat = (lp - lm) / (2.0 * ck)          # scalar SPSA gradient magnitude
+        for a_acc, d in zip(accum, deltas):
+            a_acc.add_(ghat * d)                # g_i = ghat * delta_i  (1/delta_i = delta_i)
+        last_loss = 0.5 * (lp + lm)
+
+    with torch.no_grad():
+        for p, o, g_acc, scale in zip(params, orig, accum, spsa["scales"]):
+            p.copy_(o - ak * scale * (g_acc / R))
+    spsa["k"] += 1
+    return last_loss
+
+
 def train(model: QFunction, config: dict, seed: int, results_path: str,
           log=print, progress_every: int = 10) -> dict:
     tcfg, ecfg = config["trainer"], config["eval"]
@@ -85,7 +153,21 @@ def train(model: QFunction, config: dict, seed: int, results_path: str,
     target.eval()
     for p in target.parameters():
         p.requires_grad_(False)
-    optimizer = torch.optim.Adam(model.param_groups())
+
+    opt_cfg = config.get("optimizer", {"type": "adam"})
+    opt_type = str(opt_cfg.get("type", "adam")).lower()
+    if opt_type == "adam":
+        optimizer = torch.optim.Adam(model.param_groups())
+        spsa = None
+    elif opt_type == "spsa":
+        optimizer = None
+        spsa = build_spsa_state(model, opt_cfg.get("spsa", {}))
+    else:
+        raise ValueError(f"Unknown optimizer {opt_type!r}. Expected 'adam' or 'spsa'.")
+    log(f"optimizer: {opt_type}"
+        + (f" (a={spsa['a']}, c={spsa['c']}, A={spsa['A']}, resamplings={spsa['resamplings']})"
+           if spsa else ""))
+
     buffer = ReplayBuffer(int(tcfg["replay_capacity"]), model.obs_dim, rng)
 
     scalar_cols = list(model.loggable_scalars().keys())
@@ -118,7 +200,10 @@ def train(model: QFunction, config: dict, seed: int, results_path: str,
             ep_reward += float(reward)
             env_steps += 1
             if len(buffer) >= learning_starts and env_steps % train_every == 0:
-                losses.append(dqn_update(model, target, buffer, batch_size, gamma, optimizer, grad_clip))
+                if spsa is None:
+                    losses.append(dqn_update(model, target, buffer, batch_size, gamma, optimizer, grad_clip))
+                else:
+                    losses.append(spsa_update(model, target, buffer, batch_size, gamma, spsa))
                 grad_steps += 1
                 if grad_steps % target_update == 0:
                     target.load_state_dict(model.state_dict())

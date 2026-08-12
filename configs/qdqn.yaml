@@ -50,3 +50,19 @@ eval:
   solve_reward: 475.0            # mean over 100 consecutive episodes -> solved
   solve_window: 100
   final_greedy_episodes: 100     # epsilon = 0 evaluation at the end
+
+optimizer:
+  type: adam                     # adam (exact reverse/adjoint gradient) | spsa (gradient-free ablation)
+  # SPSA is only used when type: spsa. It is FORWARD-ONLY (no backward), so on the
+  # Qiskit path -- where the backward dominates -- it is ~10x cheaper per step, but the
+  # gradient estimate is noisy. Gains follow Spall's schedule:
+  #   a_k = a / (k+1+A)^alpha ,  c_k = c / (k+1)^gamma
+  # Per-parameter step = a_k * (group lr) * ghat * delta, reusing the 3-lr group
+  # structure (so output scaling still moves ~100x faster). a/c/A are GUESSES to tune.
+  spsa:
+    a: 0.05
+    c: 0.1
+    alpha: 0.602                 # Spall recommended
+    gamma: 0.101                 # Spall recommended
+    A: 100
+    resamplings: 1               # gradient estimates averaged per update

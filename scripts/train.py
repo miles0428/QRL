@@ -32,6 +32,7 @@ def main() -> None:
     ap.add_argument("--n-layers", type=int, default=None, help="override model.n_layers (VQC)")
     ap.add_argument("--train-every", type=int, default=None, help="override trainer.train_every")
     ap.add_argument("--learning-starts", type=int, default=None, help="override trainer.learning_starts")
+    ap.add_argument("--optimizer", choices=["adam", "spsa"], default=None, help="override optimizer.type")
     ap.add_argument("--results-dir", default="results")
     ap.add_argument("--progress-every", type=int, default=10)
     ap.add_argument("--quiet-warnings", action="store_true", help="silence qiskit V1-deprecation noise")
@@ -49,11 +50,15 @@ def main() -> None:
         config["trainer"]["train_every"] = args.train_every
     if args.learning_starts is not None:
         config["trainer"]["learning_starts"] = args.learning_starts
+    if args.optimizer is not None:
+        config.setdefault("optimizer", {})["type"] = args.optimizer
 
     name = config["name"]
     # Tag the run name with overrides so parallel experiments write distinct files.
     if args.n_layers is not None:
         name = f"{name}_L{args.n_layers}"
+    if args.optimizer is not None:
+        name = f"{name}_{args.optimizer}"
     os.makedirs(args.results_dir, exist_ok=True)
     results_path = os.path.join(args.results_dir, f"{name}_{args.seed}.csv")
     log_path = os.path.join(args.results_dir, f"{name}_{args.seed}.log")
