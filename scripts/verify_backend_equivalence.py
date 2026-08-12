@@ -144,6 +144,11 @@ def main() -> int:
     parser.add_argument("--batch", type=int, default=8)
     parser.add_argument("--tol", type=float, default=1e-5)
     parser.add_argument(
+        "--check-reference",
+        action="store_true",
+        help="also check torch_sv's fast stage-grouped path against its gate-at-a-time reference",
+    )
+    parser.add_argument(
         "--check-grad",
         action="store_true",
         help="also check gradients against finite differences (slow: O(n_params) sims)",
@@ -207,6 +212,26 @@ def main() -> int:
         return 1
 
     print(f"\nOK -- {args.backend} forward matches the statevector reference to {args.tol:g}")
+
+    if args.check_reference and args.backend == "torch_sv":
+        # torch_sv's `simulate` is a performance rewrite of `_simulate_reference`
+        # (stage grouping, batched matrix construction, CX runs precomposed into
+        # a permutation). Checking them against each other localizes a failure:
+        # if both disagree with Qiskit the circuit is wrong, if only the fast one
+        # does the optimization is wrong.
+        from src.models import torch_statevector as tsv
+
+        scaled = (model.lam * normalize_observation(states)).detach()
+        w_ref = model.circuit_weights()
+        fast = tsv.simulate(model.vqc._compiled, scaled, w_ref, model.vqc._obs)
+        slow = tsv._simulate_reference(model.vqc._compiled, scaled, w_ref, model.vqc._obs)
+        diff = float((fast - slow).abs().max())
+        n_ops, n_stages = len(model.vqc._compiled.ops), len(model.vqc._compiled.stages)
+        print(f"\nfast path vs gate-at-a-time reference: max |diff| {diff:.3e} "
+              f"({n_ops} ops -> {n_stages} stages)")
+        if diff > args.tol:
+            print("MISMATCH: the stage-grouping optimization changed the result.")
+            return 1
 
     if args.check_grad and not check_gradients(model, states, args.grad_tol):
         print(

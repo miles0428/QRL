@@ -95,6 +95,79 @@ class CompiledCircuit:
         self.n_encoding = n_encoding
         self.n_weights = n_weights
         self.dim = 2**n_qubits
+        self.stages = _build_stages(ops, n_qubits)
+
+
+def _cx_index_map(control: int, target: int, n_qubits: int) -> np.ndarray:
+    """CX as a basis-state permutation: |c,t> -> |c, t XOR c>.
+
+    Returns `idx` such that applying the gate is `new_state[j] = old_state[idx[j]]`.
+    CX is an involution, so the forward and inverse maps coincide.
+    """
+    dim = 2**n_qubits
+    j = np.arange(dim)
+    control_set = (j >> control) & 1
+    return j ^ (control_set << target)
+
+
+def _build_stages(ops: list, n_qubits: int) -> list:
+    """Group the flat op list into execution stages.
+
+    THIS IS PURELY A PERFORMANCE REWRITE -- it changes how the same circuit is
+    executed, never what it computes, and verify_backend_equivalence.py is what
+    holds that line.
+
+    Motivation: at 4 qubits the state is 16 complex numbers, so essentially all
+    the cost is Python-level dispatch, not arithmetic. The naive op loop issues
+    roughly 820 tiny torch calls per forward for a 5-layer circuit. Two
+    structural changes cut that:
+
+      1. Consecutive single-qubit rotations are collected into one stage, and
+         within a stage all rotations sharing an axis have their 2x2 matrices
+         built by ONE batched call instead of one call each. Matrix construction
+         is ~8 torch ops regardless of how many angles it handles.
+      2. A run of CX gates composes into a single basis-state permutation,
+         precomputed once at compile time. 20 CX gate applications become 5
+         index_selects.
+
+    Stages are ("rot", [(qubit, axis, source, ref), ...]) and ("perm", idx).
+    Rotation order within a stage is preserved, so gates on the same qubit still
+    compose in circuit order.
+    """
+    stages: list = []
+    pending: list = []
+    perm: np.ndarray | None = None
+
+    def flush_perm():
+        nonlocal perm
+        if perm is not None:
+            stages.append(("perm", perm))
+            perm = None
+
+    def flush_rot():
+        nonlocal pending
+        if pending:
+            stages.append(("rot", pending))
+            pending = []
+
+    for op in ops:
+        if op[0] == "rot":
+            flush_perm()
+            pending.append((op[2], op[1], op[3], op[4]))
+        elif op[0] == "cx":
+            flush_rot()
+            step = _cx_index_map(op[1], op[2], n_qubits)
+            # Composition order matters: applying `step` after the accumulated
+            # `perm` gives new[j] = old[perm[step[j]]].
+            perm = step if perm is None else perm[step]
+        else:  # const1q -- rare; keep it on the general path
+            flush_rot()
+            flush_perm()
+            stages.append(("const1q", op[1], op[2]))
+
+    flush_rot()
+    flush_perm()
+    return stages
 
 
 def compile_circuit(
@@ -267,15 +340,88 @@ def simulate(
     state[:, 0] = 1.0
     state = state.reshape(batch, *([2] * n))
 
+    for stage in compiled.stages:
+        kind = stage[0]
+
+        if kind == "perm":
+            # A whole run of CX gates as one gather. new[j] = old[idx[j]].
+            idx = torch.as_tensor(stage[1], dtype=torch.long, device=encoding.device)
+            state = state.reshape(batch, compiled.dim)[:, idx].reshape(batch, *([2] * n))
+
+        elif kind == "rot":
+            entries = stage[1]
+            # Build every rotation matrix in this stage with one call per axis,
+            # rather than one call per gate. Angles are promoted to [B, k] so a
+            # single batched build covers shared and per-sample angles alike.
+            mats: dict[int, torch.Tensor] = {}
+            for axis in {e[1] for e in entries}:
+                positions = [i for i, e in enumerate(entries) if e[1] == axis]
+                cols = []
+                for i in positions:
+                    _, _, source, ref = entries[i]
+                    if source == "enc":
+                        cols.append(encoding[:, ref])
+                    elif source == "var":
+                        cols.append(weights[ref].expand(batch))
+                    else:
+                        cols.append(
+                            torch.full((batch,), ref, dtype=encoding.dtype, device=encoding.device)
+                        )
+                built = _rotation_matrix(axis, torch.stack(cols, dim=1))  # [B, k, 2, 2]
+                for slot, i in enumerate(positions):
+                    mats[i] = built[:, slot]
+
+            for i, (qubit, _, _, _) in enumerate(entries):
+                state = _apply_1q(state, mats[i], qubit, n)
+
+        else:  # const1q
+            _, qubit, matrix = stage
+            mat = torch.as_tensor(matrix, dtype=torch.complex64, device=encoding.device)
+            state = _apply_1q(state, mat, qubit, n)
+
+    psi = state.reshape(batch, compiled.dim)
+    expvals = torch.einsum("bi,oij,bj->bo", psi.conj(), obs_matrices, psi)
+    return expvals.real
+
+
+def _simulate_reference(
+    compiled: CompiledCircuit,
+    encoding: torch.Tensor,
+    weights: torch.Tensor,
+    obs_matrices: torch.Tensor,
+) -> torch.Tensor:
+    """Gate-at-a-time execution, kept as the readable definition of `simulate`.
+
+    `simulate` is a performance rewrite of exactly this (stage grouping, batched
+    matrix construction, CX runs precomposed into one permutation). Keeping the
+    straightforward version means the optimization can be checked against it
+    directly -- see scripts/verify_backend_equivalence.py --check-reference --
+    rather than only against Qiskit.
+    """
+    batch = encoding.shape[0]
+    n = compiled.n_qubits
+
+    state = torch.zeros(batch, compiled.dim, dtype=torch.complex64, device=encoding.device)
+    state[:, 0] = 1.0
+    state = state.reshape(batch, *([2] * n))
+
     for op in compiled.ops:
         if op[0] == "rot":
             _, axis, qubit, source, ref = op
             if source == "enc":
+                # Only encoding angles vary across the batch, so only these need
+                # the per-sample [B,2,2] matrix and the batched einsum.
                 theta = encoding[:, ref]
             elif source == "var":
-                theta = weights[ref].expand(batch)
+                # Variational angles are SHARED across the batch. Keeping theta
+                # 0-dimensional yields a [2,2] matrix, which _apply_1q applies
+                # with a plain broadcast matmul instead of a batched einsum --
+                # cheaper, and it avoids materializing B copies of an identical
+                # 2x2. Two thirds of the rotations in this circuit are
+                # variational, so this is most of them.
+                theta = weights[ref]
             else:  # angle was already bound to a number in the circuit
-                theta = torch.full((batch,), ref, dtype=encoding.dtype, device=encoding.device)
+                theta = torch.as_tensor(ref, dtype=encoding.dtype, device=encoding.device)
             state = _apply_1q(state, _rotation_matrix(axis, theta), qubit, n)
         elif op[0] == "cx":
             state = _apply_cx(state, op[1], op[2], n)
