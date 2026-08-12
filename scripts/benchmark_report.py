@@ -242,6 +242,17 @@ def main() -> None:
         if df is not None:
             mlp[path.stem] = df
 
+    # TensorFlow Quantum arm. Same CSV schema on purpose (see tfq/train.py), so
+    # it needs no special-casing here. NOTE when reading the tables: this arm has
+    # 94 trainable parameters against the Qiskit arm's 46, and mlp_baseline's 44
+    # is parameter-matched to the Qiskit arm -- so mlp-vs-tfq is not a
+    # parameter-matched comparison.
+    tfq_runs = {}
+    for path in sorted(rdir.glob("tfq_[0-9].csv")):
+        df = load_run(path)
+        if df is not None:
+            tfq_runs[path.stem] = df
+
     # Prefer whichever pre-v3 source got further: the commit captured the run
     # mid-flight, so the working copy is usually longer.
     candidates = [
@@ -259,6 +270,8 @@ def main() -> None:
         rows.append(throughput_row("qdqn pre-v3 (baseline)", "qiskit_ml+SPSA", baseline))
     for name, df in qdqn.items():
         rows.append(throughput_row(f"qdqn v3 {name.split('_')[-1]}", "torch_sv", df))
+    for name, df in tfq_runs.items():
+        rows.append(throughput_row(f"tfq {name.split('_')[-1]}", "tfq/cirq", df))
     for name, df in mlp.items():
         rows.append(throughput_row(f"mlp {name.split('_')[-1]}", "classical", df))
     tp = pd.DataFrame(rows)
@@ -303,11 +316,18 @@ def main() -> None:
     print(f"GREEDY EVAL  -- median & IQR of epsilon=0 rollouts, across {len(qdqn)} seeds")
     print("=" * 78)
     ev = aggregate_eval(qdqn)
+    ev_tfq = aggregate_eval(tfq_runs)
+    if not ev_tfq.empty:
+        print("-- qiskit arm (torch_sv, 46 params) --")
     if ev.empty:
         print("  (no eval columns -- run was produced before the greedy-eval hook, or eval_every=0)")
     else:
         stride = max(1, len(ev) // 20)
         print(fmt(pd.concat([ev.iloc[::stride], ev.tail(1)]).drop_duplicates(), "%.1f"))
+    if not ev_tfq.empty:
+        print("\n-- tfq arm (cirq, 94 params) --")
+        stride = max(1, len(ev_tfq) // 20)
+        print(fmt(pd.concat([ev_tfq.iloc[::stride], ev_tfq.tail(1)]).drop_duplicates(), "%.1f"))
     print(
         "\nRead policy quality from THIS table, not the one above: the training columns are\n"
         "recorded under exploration and understate the agent (measured: 33.7 training vs\n"
@@ -320,6 +340,7 @@ def main() -> None:
     solve_rows = []
     for label, group, paths in (
         ("qdqn v3", qdqn, rdir.glob("qdqn_[0-9].csv")),
+        ("tfq", tfq_runs, rdir.glob("tfq_[0-9].csv")),
         ("mlp", mlp, rdir.glob("mlp_baseline_[0-9].csv")),
     ):
         by_stem = {p.stem: p for p in paths}
