@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import os
 
+import matplotlib
+
+matplotlib.use("Agg")  # headless: script-generated figures, no GUI/Tk backend
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
