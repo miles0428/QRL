@@ -19,8 +19,35 @@ import torch
 
 SOLVE_THRESHOLD = 475.0
 
-QDQN_STYLE = dict(color="#4C72B0", linestyle="-", marker="o", label="QDQN (VQC)")
-MLP_STYLE = dict(color="#DD8452", linestyle="--", marker="s", label="MLP baseline")
+# Categorical slots 1-3, assigned in fixed order and never cycled. Verified with
+# the palette validator in both light and dark mode: worst adjacent CVD pair
+# (aqua/orange) is deltaE 9.2 deutan, 27.6 normal -- all checks pass. The earlier
+# seaborn-ish pair (#4C72B0/#DD8452) failed contrast against the surface, and the
+# obvious third choices failed CVD: green/orange came out at deltaE 4.5 protan and
+# purple/blue at 1.9, i.e. indistinguishable to a protanope.
+#
+# Identity is never carried by color alone: every series also gets its own
+# linestyle and marker, so the figures survive greyscale printing and CVD.
+SERIES_BLUE = "#2a78d6"
+SERIES_ORANGE = "#eb6834"
+SERIES_AQUA = "#1baf7a"
+GRID_INK = "#52514e"  # text-secondary; annotations wear ink, never a series color
+
+QDQN_STYLE = dict(color=SERIES_BLUE, linestyle="-", marker="o", label="QDQN (VQC)")
+MLP_STYLE = dict(color=SERIES_ORANGE, linestyle="--", marker="s", label="MLP baseline")
+TFQ_STYLE = dict(color=SERIES_AQUA, linestyle="-.", marker="^", label="QDQN (TFQ)")
+
+# label -> style, matched by substring so callers can pass descriptive names
+# ("QDQN (Qiskit, 46 params)") without the styling drifting between figures.
+_ARM_STYLES = (("tfq", TFQ_STYLE), ("mlp", MLP_STYLE), ("qdqn", QDQN_STYLE))
+
+
+def _style_for(label: str) -> dict:
+    low = label.lower()
+    for key, style in _ARM_STYLES:
+        if key in low:
+            return style
+    return QDQN_STYLE
 
 
 def load_results(config_name: str, seeds: list[int], results_dir: str = "results") -> pd.DataFrame:
@@ -70,6 +97,55 @@ def plot_learning_curves(qdqn_df: pd.DataFrame | None, mlp_df: pd.DataFrame | No
     ax.set_title("Learning curves (median across seeds, IQR shaded)")
     ax.legend()
     ax.grid(alpha=0.3)
+    _save(fig, out_prefix)
+
+
+# --- (9) Greedy-evaluation curves --------------------------------------------
+
+def plot_greedy_eval_curves(arms: list[tuple[str, pd.DataFrame]], out_prefix: str) -> None:
+    """Median + IQR of GREEDY (epsilon=0) evaluation reward, per arm.
+
+    This is the figure to read policy quality from, not the training-reward
+    curve. Training reward is recorded on exploring episodes and is bounded well
+    below the agent's ability whenever epsilon is appreciable -- measured on this
+    project, 33.7 training against 153.2 greedy at the same episode.
+
+    Plotted per arm on a shared axis and NEVER as a second y-axis: the arms
+    measure the same quantity in the same units, so one axis is correct and a
+    twin axis would invent a comparison that isn't there.
+
+    A caveat this figure cannot show, so it is captioned: the median across seeds
+    hides oscillation. Five seeds each swinging between 500 and ~10 produce a
+    median that looks like smooth progress whenever they happen to align. Read
+    the IQR band width, not just the line -- a wide band here means the seeds
+    disagree at that episode, which is the actual finding.
+    """
+    fig, ax = plt.subplots(figsize=(8.5, 5))
+
+    for label, df in arms:
+        if df is None or "eval_mean_reward" not in df.columns:
+            continue
+        ev = df[df["eval_mean_reward"].notna()]
+        if ev.empty:
+            continue
+        style = _style_for(label)
+        x, median, q25, q75 = _median_iqr_by_episode(ev, "eval_mean_reward", "episode")
+        ax.plot(x + 1, median, color=style["color"], linestyle=style["linestyle"],
+                marker=style["marker"], markersize=5, linewidth=2, label=label)
+        ax.fill_between(x + 1, q25, q75, color=style["color"], alpha=0.18, linewidth=0)
+
+    ax.axhline(SOLVE_THRESHOLD, color=GRID_INK, linestyle=":", linewidth=1.4)
+    ax.annotate("solved (475)", xy=(0.995, SOLVE_THRESHOLD), xycoords=("axes fraction", "data"),
+                ha="right", va="bottom", fontsize=9, color=GRID_INK)
+
+    ax.set_xlabel("Episode")
+    ax.set_ylabel("Greedy evaluation reward")
+    ax.set_title("Greedy (ε=0) policy quality — median across seeds, IQR shaded")
+    ax.set_ylim(bottom=0)
+    ax.legend(frameon=False)
+    ax.grid(alpha=0.25, linewidth=0.6)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
     _save(fig, out_prefix)
 
 

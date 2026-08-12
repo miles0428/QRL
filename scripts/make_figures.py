@@ -1,9 +1,14 @@
-"""Generate all 8 required figures into figures/.
+"""Generate the figures into figures/.
 
 Gracefully skips any figure whose input data (result CSVs / *_final.pt
 checkpoints) isn't available yet, rather than failing the whole run --
 useful for generating what's possible from partial/smoke-test runs before a
 full multi-seed sweep has completed.
+
+Configs are read through src.config.load_config, NOT raw yaml. v3 moved
+configs/*.yaml to a sectioned layout (model:/trainer:/optim:/...), so
+`yaml.safe_load(f)["n_qubits"]` -- which this script used to do -- raises
+KeyError. load_config is the single place that knows the file layout.
 """
 
 from __future__ import annotations
@@ -15,9 +20,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import torch
-import yaml
 
 from src import plots
+from src.config import load_config
 from src.models.mlp import MLPQFunction
 from src.models.vqc import VQCQFunction
 
@@ -39,20 +44,30 @@ def main():
     parser.add_argument("--figures-dir", type=str, default="figures")
     args = parser.parse_args()
 
-    with open(args.qdqn_config) as f:
-        qdqn_config = yaml.safe_load(f)
-    with open(args.mlp_config) as f:
-        mlp_config = yaml.safe_load(f)
+    qdqn_config = load_config(args.qdqn_config)
+    mlp_config = load_config(args.mlp_config)
 
     fdir = args.figures_dir
+    Path(fdir).mkdir(parents=True, exist_ok=True)
 
     print("(1)/(2) learning curves + sample efficiency")
     qdqn_df = try_load_results(qdqn_config["name"], args.seeds, args.results_dir)
     mlp_df = try_load_results(mlp_config["name"], args.seeds, args.results_dir)
+    tfq_df = try_load_results("tfq", args.seeds, args.results_dir)
     if qdqn_df is not None or mlp_df is not None:
         plots.plot_learning_curves(qdqn_df, mlp_df, f"{fdir}/01_learning_curves")
         plots.plot_sample_efficiency(qdqn_df, mlp_df, f"{fdir}/02_sample_efficiency")
         print("  saved 01_learning_curves.{png,pdf}, 02_sample_efficiency.{png,pdf}")
+
+    print("(1b) greedy-evaluation curves -- the figure to read policy quality from")
+    arms = [(n, d) for n, d in (("QDQN (Qiskit, 46 params)", qdqn_df),
+                                ("QDQN (TFQ, 94 params)", tfq_df),
+                                ("MLP baseline (44 params)", mlp_df)) if d is not None]
+    if arms:
+        plots.plot_greedy_eval_curves(arms, f"{fdir}/09_greedy_eval")
+        print("  saved 09_greedy_eval.{png,pdf}")
+    else:
+        print("  skipping: no result data")
 
     print("(3) scaling parameter evolution")
     if qdqn_df is not None:
