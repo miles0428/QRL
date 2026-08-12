@@ -65,4 +65,4 @@ optimizer:
     alpha: 0.602                 # Spall recommended
     gamma: 0.101                 # Spall recommended
     A: 100
-    resamplings: 1               # gradient estimates averaged per update
+    resamplings: 2               # gradient estimates averaged per update (tames SPSA variance)

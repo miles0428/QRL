@@ -65,8 +65,14 @@ def build_spsa_state(model: QFunction, spsa_cfg: dict) -> dict:
     per-parameter gain SCALES, so the output scaling `w` still moves ~100x faster than
     the circuit params (the three-lr structure is preserved for the gradient-free path).
     """
+    # Per-group scales must be RELATIVE (Spall's diagonal gain scaling), not the
+    # absolute Adam lrs -- otherwise the base gain `a` is folded in twice and the
+    # variational block (lr 1e-3) barely moves. Normalize by the smallest group lr so
+    # the ratio is variational:input:output = 1:1:100 (matching Skolik's 1e-3/1e-3/1e-1).
     lr_by_id = {id(p): float(g["lr"]) for g in model.param_groups() for p in g["params"]}
-    scales = [lr_by_id.get(id(p), 1.0) for p in model.parameters()]
+    raw = [lr_by_id.get(id(p), 1.0) for p in model.parameters()]
+    base = min(raw) if raw else 1.0
+    scales = [r / base for r in raw]
     return {
         "k": 0,
         "a": float(spsa_cfg.get("a", 0.05)),        # GUESS -- tuned in the ablation
