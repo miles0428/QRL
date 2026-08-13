@@ -145,6 +145,45 @@ def time_pg_gradient_steps(config: dict, seed: int, n_probe_steps: int = 10) -> 
     return elapsed / max(1, result["grad_steps"])
 
 
+def time_a2c_gradient_steps(config: dict, seed: int, n_probe_steps: int = 5) -> float:
+    """Seconds per gradient step for an A2C config. Same shape as the PG probe.
+
+    Runs the real loop (src/a2c_trainer.train_a2c). Expect roughly twice the PG
+    figure when the critic is quantum: actor and critic are separate circuits, so
+    a gradient step costs two batched forwards rather than one.
+    """
+    from src.a2c_trainer import train_a2c
+    from scripts.train_a2c import build_models_and_optimizer
+
+    set_seed(seed)
+    actor, critic, optimizer = build_models_and_optimizer(config, seed)
+    probe_path = os.path.join(tempfile.gettempdir(), f"_a2c_probe_{os.getpid()}.csv")
+    try:
+        result = train_a2c(
+            actor, critic, optimizer, results_path=probe_path, seed=seed,
+            env_id=config["env_id"],
+            max_episodes=n_probe_steps * config["episodes_per_update"],
+            gamma=config["gamma"],
+            gae_lambda=config["gae_lambda"],
+            n_envs=config["n_envs"],
+            episodes_per_update=config["episodes_per_update"],
+            normalize_advantages=config["normalize_advantages"],
+            entropy_coef=config["entropy_coef"],
+            value_coef=config["value_coef"],
+            value_loss_fn=config["value_loss_fn"],
+            max_grad_norm=config["max_grad_norm"],
+            max_steps_per_episode=config["max_steps_per_episode"],
+            eval_every=0,
+            verbose=False,
+        )
+        df = pd.read_csv(probe_path)
+        elapsed = float(df.iloc[-1]["wall_clock_s"])
+    finally:
+        if os.path.exists(probe_path):
+            os.remove(probe_path)
+    return elapsed / max(1, result["grad_steps"])
+
+
 def project_pg_wall_clock(config: dict, seconds_per_grad_step: float, n_seeds: int) -> dict:
     """Projection for PG, which needs no env-steps-per-episode guess.
 
@@ -202,16 +241,19 @@ def main():
     # sweep. See MODEL_ALGO in src/config.py.
     algo = algo_for(config)
     probe_steps = args.probe_steps
-    if algo == "pg":
-        # A PG gradient step consumes a whole batch of episodes, so 100 of them
-        # is a substantial run rather than a probe.
+    if algo in ("pg", "a2c"):
+        # A PG/A2C gradient step consumes a whole batch of episodes, so 100 of
+        # them is a substantial run rather than a probe.
         if probe_steps == parser.get_default("probe_steps"):
             probe_steps = 5
     else:
         config["batch_size"] = resolve_batch_size(config)
 
     print(f"\n=== timing probe: {probe_steps} real gradient steps on seed {args.seeds[0]} ===")
-    if algo == "pg":
+    if algo == "a2c":
+        seconds_per_step = time_a2c_gradient_steps(config, args.seeds[0], n_probe_steps=probe_steps)
+        projection = project_pg_wall_clock(config, seconds_per_step, len(args.seeds))
+    elif algo == "pg":
         seconds_per_step = time_pg_gradient_steps(config, args.seeds[0], n_probe_steps=probe_steps)
         projection = project_pg_wall_clock(config, seconds_per_step, len(args.seeds))
     else:
@@ -240,7 +282,12 @@ def main():
     for seed in args.seeds:
         results_path = f"{args.results_dir}/{config['name']}_{seed}.csv"
         print(f"\n--- seed {seed} ---")
-        if algo == "pg":
+        critic = None
+        if algo == "a2c":
+            from scripts.train_a2c import train_a2c_from_config
+
+            model, critic, result = train_a2c_from_config(config, seed, results_path)
+        elif algo == "pg":
             from scripts.train_pg import train_pg_from_config
 
             model, result = train_pg_from_config(config, seed, results_path)
@@ -253,9 +300,19 @@ def main():
         torch.save(model.state_dict(), final_path)
         print(f"saved final model weights to {final_path}")
 
+        if critic is not None:
+            critic_path = results_path.replace(".csv", "_critic.pt")
+            torch.save(critic.state_dict(), critic_path)
+            print(f"saved final critic weights to {critic_path}")
+
         if config["model_type"] in ("vqc", "vqc_policy"):
             portable_path = results_path.replace(".csv", "_weights.pt")
             torch.save(model.export_weights(), portable_path)
+            print(f"saved backend-neutral weights to {portable_path}")
+        elif config["model_type"] == "vqc_a2c":
+            portable_path = results_path.replace(".csv", "_weights.pt")
+            torch.save({"actor": model.export_weights(), "critic": critic.export_weights()},
+                       portable_path)
             print(f"saved backend-neutral weights to {portable_path}")
 
     agg = aggregate_results(csv_paths)

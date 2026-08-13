@@ -29,22 +29,27 @@ qdqn-cartpole/
 │   ├── qdqn.yaml           # quantum agent hyperparameters (DQN)
 │   ├── mlp_baseline.yaml   # classical control hyperparameters (DQN)
 │   ├── qpg.yaml            # quantum agent hyperparameters (REINFORCE)
-│   └── mlp_pg.yaml         # classical control hyperparameters (REINFORCE)
+│   ├── mlp_pg.yaml         # classical control hyperparameters (REINFORCE)
+│   ├── qa2c.yaml           # quantum actor + quantum critic (A2C + GAE)
+│   └── mlp_a2c.yaml        # classical control hyperparameters (A2C + GAE)
 ├── src/
 │   ├── models/
-│   │   ├── base.py         # QFunction / PolicyFunction ABCs + shared obs normalization
+│   │   ├── base.py         # QFunction / PolicyFunction / ValueFunction ABCs + obs norm
 │   │   ├── vqc.py          # VQC Q-function (TorchConnector)
 │   │   ├── vqc_policy.py   # VQC softmax policy -- same circuit, policy head
-│   │   └── mlp.py          # classical baselines (Q-function + policy), param-matched
+│   │   ├── vqc_value.py    # VQC critic -- same circuit, one observable, scalar head
+│   │   └── mlp.py          # classical baselines (Q / policy / value), param-matched
 │   ├── replay.py           # experience replay buffer (DQN only)
 │   ├── trainer.py          # model-agnostic DQN loop -- does NOT import qiskit
 │   ├── pg_trainer.py       # model-agnostic REINFORCE loop -- does NOT import qiskit
-│   ├── evaluate.py         # greedy rollouts + solve criterion (shared by both)
+│   ├── a2c_trainer.py      # model-agnostic A2C + GAE loop -- does NOT import qiskit
+│   ├── evaluate.py         # greedy rollouts + solve criterion (shared by all three)
 │   ├── seeds.py            # reproducibility
 │   └── plots.py            # all 8 figure-generation functions
 ├── scripts/
 │   ├── train.py             # train one (config, seed) -- DQN
 │   ├── train_pg.py          # train one (config, seed) -- policy gradient
+│   ├── train_a2c.py         # train one (config, seed) -- actor-critic
 │   ├── sweep_seeds.py       # train across multiple seeds, with a performance gate
 │   ├── summarize.py         # per-seed table for a tag; A/B between two
 │   └── make_figures.py      # generate all figures from results/ + checkpoints
@@ -59,33 +64,52 @@ Swapping the model for a different ansatz means writing a new `src/models/*.py` 
 pointing a config at it -- `trainer.py` and `evaluate.py` don't change.
 `src/pg_trainer.py` obeys the same rule.
 
-### Two algorithms, one circuit
+### Three algorithms, one circuit
 
-The policy-gradient path reuses the quantum model wholesale. `VQCPolicy` imports
-`build_circuit` and `make_backend` from `vqc.py`, so a QPG agent and a QDQN agent
-share the same ansatz, the same `["ZZII", "IIZZ"]` observables, the same trainable
-input scaling `lam`, and the same `torch_sv` backend. They differ in exactly two
-places:
+The policy-gradient and actor-critic paths reuse the quantum model wholesale.
+`VQCPolicy` and `VQCValue` both import `build_circuit` and `make_backend` from
+`vqc.py`, so every agent here shares the same ansatz, the same data re-uploading,
+the same trainable input scaling `lam`, and the same `torch_sv` backend. Only the
+readout head and the trainer differ:
 
-| | QDQN (`vqc.py`) | QPG (`vqc_policy.py`) |
-|---|---|---|
-| head | `w * (<O> + 1) / 2`, per-action weight | `beta * <O>`, softmax; single inverse temperature |
-| why | must reach Q\* ~ 99 | only logit *differences* matter -- softmax is shift-invariant |
-| exploration | epsilon schedule | sampling from pi; `beta` is trained, so it anneals itself |
-| trainer | `trainer.py` (replay, target net, TD loss) | `pg_trainer.py` (on-policy rounds, return-to-go, baseline) |
-| params | 46 (40 circuit + 4 lam + 2 w) | 45 (40 circuit + 4 lam + 1 beta) |
+| | QDQN (`vqc.py`) | QPG (`vqc_policy.py`) | QA2C critic (`vqc_value.py`) |
+|---|---|---|---|
+| observables | 2 (one per action) | 2 (one per action) | 1 (`ZZZZ`) |
+| head | `w * (<O>+1)/2` | `beta * <O>`, softmax | `w * (<O>+1)/2` |
+| why | must reach Q\* ~ 99 | only logit *differences* matter | must reach V\* ~ 99 |
+| exploration | epsilon schedule | sampling from pi; `beta` trains itself | — |
+| trainer | `trainer.py` | `pg_trainer.py` | `a2c_trainer.py` |
+| params | 46 | 45 | 45 |
 
-That makes qdqn-vs-qpg a comparison of *algorithms* rather than of two
-independently-tuned circuits. `evaluate.py` is shared verbatim: `argmax(logits)`
-equals `argmax(softmax(logits))`, which is why greedy evaluation needs no
+That makes qdqn-vs-qpg-vs-qa2c a comparison of *algorithms* rather than of
+independently-tuned circuits. `evaluate.py` is shared verbatim by all three:
+`argmax(logits)` equals `argmax(softmax(logits))`, so greedy evaluation needs no
 policy-specific branch (`beta` is held positive through a softplus so this cannot
-silently invert -- see `vqc_policy.py`).
+silently invert -- see `vqc_policy.py`). A2C's critic takes no part in
+evaluation; it exists only to reduce the variance of the actor's gradient.
 
-`pg_trainer.py` writes the DQN CSV header plus two appended columns (`entropy`,
-`beta`), so `scripts/summarize.py` and `src/plots.py` read QPG runs unchanged:
+Two details in the actor-critic path are easy to get wrong and are worth knowing
+about before changing them:
+
+- **Truncation is bootstrapped, termination is not.** A CartPole episode that
+  hits the 500-step limit is not over in the value sense -- the pole is still up.
+  A trained agent truncates *every* episode, so treating truncation as terminal
+  teaches the critic that its best states are worthless. `_collect_round` records
+  the two cases separately.
+- **The critic's `w` starts at the return scale**, `(1-gamma^T)/(1-gamma)`, not
+  at 1. An A2C run takes ~60 gradient steps, and Adam moves a parameter by about
+  its learning rate per step, so a head starting at 1 never reaches V\* ~ 99
+  inside a run -- the critic stays near-constant and GAE's baseline silently
+  degenerates into REINFORCE's batch mean. The `explained_variance` CSV column is
+  the diagnostic: near 0 means the critic is not earning its cost.
+
+The PG and A2C trainers write the DQN CSV header plus appended columns
+(`entropy`, `beta`; A2C adds `value_loss`, `explained_variance`), so
+`scripts/summarize.py` and `src/plots.py` read those runs unchanged:
 
 ```bash
 python scripts/summarize.py "" --config qpg
+python scripts/summarize.py "" --config qa2c
 ```
 
 ## Model spec
@@ -177,10 +201,15 @@ python scripts/train.py --config configs/qdqn.yaml --seed 0
 python scripts/train_pg.py --config configs/mlp_pg.yaml --seed 0
 python scripts/train_pg.py --config configs/qpg.yaml --seed 0 --max-wall-clock-s 600
 
+# Train one (config, seed) -- actor-critic (A2C + GAE):
+python scripts/train_a2c.py --config configs/mlp_a2c.yaml --seed 0
+python scripts/train_a2c.py --config configs/qa2c.yaml --seed 0 --max-wall-clock-s 600
+
 # Sweep multiple seeds (5 minimum, 10 if runtime allows). Dispatches on the
-# config's model type, so it takes either algorithm:
+# config's model type, so it takes any of the three algorithms:
 python scripts/sweep_seeds.py --config configs/mlp_baseline.yaml --seeds 0 1 2 3 4
 python scripts/sweep_seeds.py --config configs/qpg.yaml --seeds 0 1 2 3 4
+python scripts/sweep_seeds.py --config configs/qa2c.yaml --seeds 0 1 2 3 4
 
 # Final greedy evaluation (epsilon=0, 100 episodes) of a trained model:
 python -m src.evaluate  # see src/evaluate.py::evaluate() for programmatic use

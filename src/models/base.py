@@ -69,6 +69,26 @@ class PolicyFunction(nn.Module, ABC):
         ...
 
 
+class ValueFunction(nn.Module, ABC):
+    """State-value critic: forward(states) -> Tensor[B], one scalar per state.
+
+    Shape differs from QFunction/PolicyFunction on purpose: a critic scores the
+    state, not the actions in it, so there is no action axis to index and
+    returning [B, 1] would invite a silent broadcast against a [B] advantage
+    vector. Implementations squeeze it themselves.
+
+    The output has to reach the same magnitude a Q-function does -- V* for
+    CartPole at gamma=0.99 is ~99, since V*(s) = Q*(s, a*) under the optimal
+    policy. That is why src/models/vqc_value.py carries the same output-scaling
+    weight `w` as VQCQFunction rather than the bare inverse temperature the
+    policy head uses.
+    """
+
+    @abstractmethod
+    def forward(self, states: torch.Tensor) -> torch.Tensor:
+        ...
+
+
 if __name__ == "__main__":
     raw = torch.tensor([[0.1, -1.5, 0.05, 2.0], [3.0, 0.0, -0.3, -5.0]], dtype=torch.float32)
     normed = normalize_observation(raw)

@@ -118,11 +118,28 @@ def _collect_round(model, env, n_envs, seed, max_steps_per_episode) -> list[dict
     early are masked out (`alive`) rather than restarted, so nothing generated
     after an episode boundary enters the batch. gymnasium 1.x autoresets the
     finished environment behind our back; masking is what makes that harmless.
+
+    TERMINATION VS TRUNCATION IS RECORDED SEPARATELY, and this matters to any
+    consumer that bootstraps a value estimate (src/a2c_trainer.py does; the
+    REINFORCE loss does not and ignores these fields). CartPole ends an episode
+    two quite different ways: the pole falls (`terminated` -- the true return
+    from there is 0) or the 500-step limit is reached (`truncated` -- the pole is
+    still up and the true return from there is large). Treating a truncation as
+    terminal teaches a critic that the best states it ever reaches are worth
+    nothing, which is precisely backwards on this environment, where a
+    well-trained agent truncates EVERY episode.
+
+    `final_state` is the observation the episode ended on, captured at the step
+    where the environment finished -- gymnasium's next-step autoreset returns
+    the true final observation there, and replaces it on the FOLLOWING step, so
+    it is copied out at that moment rather than read afterwards.
     """
     obs, _info = env.reset(seed=[seed + i for i in range(n_envs)])
     states: list[list] = [[] for _ in range(n_envs)]
     actions: list[list] = [[] for _ in range(n_envs)]
     rewards: list[list] = [[] for _ in range(n_envs)]
+    final_states: list = [None] * n_envs
+    was_truncated = np.zeros(n_envs, dtype=bool)
     alive = np.ones(n_envs, dtype=bool)
 
     for _step in range(max_steps_per_episode):
@@ -135,15 +152,28 @@ def _collect_round(model, env, n_envs, seed, max_steps_per_episode) -> list[dict
             actions[i].append(int(acts[i]))
             rewards[i].append(float(rews[i]))
 
+        # Captured before `alive` is updated, and copied: next_obs is reused.
+        for i in np.flatnonzero(alive & dones):
+            final_states[i] = np.array(next_obs[i], dtype=np.float32)
+            was_truncated[i] = bool(truncated[i])
+
         alive &= ~dones
         obs = next_obs
         if not alive.any():
             break
 
+    # Any environment still alive never hit a done inside our own step cap, so
+    # it is truncated by this function rather than by the environment.
+    for i in np.flatnonzero(alive):
+        final_states[i] = np.array(obs[i], dtype=np.float32)
+        was_truncated[i] = True
+
     return [
         {"states": np.asarray(states[i], dtype=np.float32),
          "actions": np.asarray(actions[i], dtype=np.int64),
-         "rewards": rewards[i]}
+         "rewards": rewards[i],
+         "final_state": final_states[i],
+         "truncated": bool(was_truncated[i])}
         for i in range(n_envs)
     ]
 

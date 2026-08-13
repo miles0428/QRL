@@ -63,6 +63,17 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("trainer", "normalize_advantages"): "normalize_advantages",
     ("trainer", "entropy_coef"): "entropy_coef",
     ("trainer", "max_grad_norm"): "max_grad_norm",
+    # A2C only. See src/a2c_trainer.py.
+    ("trainer", "gae_lambda"): "gae_lambda",
+    ("trainer", "value_coef"): "value_coef",
+    ("trainer", "value_loss_fn"): "value_loss_fn",
+    ("critic", "observable"): "critic_observable",
+    ("critic", "hidden"): "critic_hidden",
+    ("critic", "w_init"): "critic_w_init",
+    ("optim", "lr_critic_variational"): "lr_critic_vqc",
+    ("optim", "lr_critic_input_scaling"): "lr_critic_lam",
+    ("optim", "lr_critic_output_scaling"): "lr_critic_w",
+    ("optim", "lr_critic"): "lr_critic",
     ("gradient", "method"): "gradient_method",
     ("gradient", "backend"): "backend",
     ("eval", "solve_threshold"): "solve_threshold",
@@ -128,6 +139,20 @@ DEFAULTS: dict[str, Any] = {
     "normalize_advantages": True,
     "entropy_coef": 0.0,
     "max_grad_norm": None,
+    # --- A2C (model_type vqc_a2c | mlp_a2c) ----------------------------------
+    "gae_lambda": 0.95,
+    "value_coef": 0.5,
+    "value_loss_fn": "huber",
+    "critic_observable": "ZZZZ",
+    "critic_hidden": 7,  # one output unit, so wider than the actor -- see mlp.py
+    # None means derive it: (1-gamma^T)/(1-gamma), the largest return the
+    # discounting admits. A critic head starting at 1 cannot reach V* inside an
+    # A2C run's ~60 gradient steps. See src/models/vqc_value.py.
+    "critic_w_init": None,
+    "lr_critic_vqc": 0.01,
+    "lr_critic_lam": 0.01,
+    "lr_critic_w": 0.1,  # must climb from 1 to ~V* = 99, exactly as the DQN head does
+    "lr_critic": 0.05,   # classical critic, single group
 }
 
 REQUIRED = ("name", "model_type", "max_episodes")
@@ -141,6 +166,8 @@ MODEL_ALGO = {
     "mlp": "dqn",
     "vqc_policy": "pg",
     "mlp_policy": "pg",
+    "vqc_a2c": "a2c",
+    "mlp_a2c": "a2c",
 }
 
 

@@ -1,0 +1,41 @@
+# Classical control for configs/qa2c.yaml: MLP actor + MLP critic, A2C + GAE.
+#
+# Parameter-matched to the quantum pair: actor 44 vs 45, critic 43 vs 45. The
+# critic uses hidden=7 where the actor uses 6 because it has one output unit
+# instead of two -- at equal width it would land at 37, which is inside the
+# +-20% band but only just. See src/models/mlp.py::MLPValue.
+#
+# Every A2C hyperparameter below is deliberately identical to configs/qa2c.yaml.
+name: mlp_a2c
+
+model:
+  type: mlp_a2c
+  hidden: 6
+
+critic:
+  hidden: 7
+
+optim:
+  lr: 0.01          # actor, matches qa2c.yaml's lr_variational
+  lr_critic: 0.05   # critic; GUESS, higher than the actor as is conventional
+
+trainer:
+  episodes: 5000
+  gamma: 0.99
+  n_envs: 8
+  episodes_per_update: 16
+  gae_lambda: 0.95
+  normalize_advantages: true
+  value_coef: 0.5
+  value_loss_fn: huber
+  entropy_coef: 0.0
+  max_grad_norm: 1.0
+  max_steps_per_episode: 500
+
+eval:
+  solve_threshold: 475.0
+  solve_window: 100
+  env_id: CartPole-v1
+  eval_every: 50
+  eval_episodes: 5
+  final_eval_episodes: 100
