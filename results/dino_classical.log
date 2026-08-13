@@ -1,0 +1,35 @@
+[dino_classical] encoder=trainable_cnn obs=zz qubits=6 layers=3 | params: CNN(trainable) 480,294 vs VQC 0 (+lam 0, w 0) | total 480,315
+[dino_classical] ep    1 | steps     46/24000 | score  182 | ma20  182.0 | eps 0.995 | loss      nan | w 0.00,0.00,0.00 | 0s
+[dino_classical] ep   10 | steps    530/24000 | score  234 | ma20  209.5 | eps 0.944 | loss      nan | w 0.00,0.00,0.00 | 1s
+[dino_classical] ep   20 | steps   1063/24000 | score  182 | ma20  210.3 | eps 0.888 | loss    0.075 | w 0.00,0.00,0.00 | 5s
+[dino_classical] ep   30 | steps   1567/24000 | score  191 | ma20  205.4 | eps 0.835 | loss    0.078 | w 0.00,0.00,0.00 | 13s
+[dino_classical] ep   40 | steps   2076/24000 | score  191 | ma20  200.4 | eps 0.781 | loss    0.014 | w 0.00,0.00,0.00 | 21s
+[dino_classical] ep   50 | steps   2581/24000 | score  182 | ma20  200.4 | eps 0.728 | loss    0.120 | w 0.00,0.00,0.00 | 29s
+[dino_classical] ep   60 | steps   3177/24000 | score  369 | ma20  218.1 | eps 0.665 | loss    0.018 | w 0.00,0.00,0.00 | 39s
+[dino_classical] ep   70 | steps   3758/24000 | score  234 | ma20  232.9 | eps 0.603 | loss    0.013 | w 0.00,0.00,0.00 | 49s
+[dino_classical] ep   80 | steps   4250/24000 | score  185 | ma20  211.8 | eps 0.551 | loss    0.008 | w 0.00,0.00,0.00 | 59s
+[dino_classical] ep   90 | steps   4968/24000 | score  185 | ma20  239.3 | eps 0.476 | loss    0.011 | w 0.00,0.00,0.00 | 72s
+[dino_classical] ep  100 | steps   5455/24000 | score  185 | ma20  238.0 | eps 0.424 | loss    0.002 | w 0.00,0.00,0.00 | 81s
+[dino_classical] ep  110 | steps   5981/24000 | score  185 | ma20  199.8 | eps 0.369 | loss    0.002 | w 0.00,0.00,0.00 | 90s
+[dino_classical] ep  120 | steps   6554/24000 | score  187 | ma20  217.4 | eps 0.308 | loss    0.008 | w 0.00,0.00,0.00 | 100s
+[dino_classical] ep  130 | steps   7175/24000 | score  373 | ma20  236.2 | eps 0.243 | loss    0.007 | w 0.00,0.00,0.00 | 110s
+[dino_classical] ep  140 | steps   7694/24000 | score  190 | ma20  225.2 | eps 0.188 | loss    0.007 | w 0.00,0.00,0.00 | 119s
+[dino_classical] ep  150 | steps   8248/24000 | score  329 | ma20  211.7 | eps 0.129 | loss    0.002 | w 0.00,0.00,0.00 | 128s
+[dino_classical] ep  160 | steps   8789/24000 | score  233 | ma20  216.2 | eps 0.072 | loss    0.006 | w 0.00,0.00,0.00 | 137s
+[dino_classical] ep  170 | steps   9345/24000 | score  232 | ma20  216.4 | eps 0.050 | loss    0.004 | w 0.00,0.00,0.00 | 147s
+[dino_classical] ep  180 | steps  10082/24000 | score  185 | ma20  255.7 | eps 0.050 | loss    0.010 | w 0.00,0.00,0.00 | 160s
+[dino_classical] ep  190 | steps  10732/24000 | score  246 | ma20  274.9 | eps 0.050 | loss    0.005 | w 0.00,0.00,0.00 | 171s
+[dino_classical] ep  200 | steps  11332/24000 | score  189 | ma20  247.3 | eps 0.050 | loss    0.014 | w 0.00,0.00,0.00 | 182s
+[dino_classical] ep  210 | steps  12181/24000 | score  319 | ma20  287.3 | eps 0.050 | loss    0.006 | w 0.00,0.00,0.00 | 198s
+[dino_classical] ep  220 | steps  13008/24000 | score  563 | ma20  333.1 | eps 0.050 | loss    0.015 | w 0.00,0.00,0.00 | 213s
+[dino_classical] ep  230 | steps  13763/24000 | score  191 | ma20  314.1 | eps 0.050 | loss    0.007 | w 0.00,0.00,0.00 | 226s
+[dino_classical] ep  240 | steps  14552/24000 | score  185 | ma20  306.1 | eps 0.050 | loss    0.015 | w 0.00,0.00,0.00 | 240s
+[dino_classical] ep  250 | steps  15525/24000 | score  465 | ma20  349.6 | eps 0.050 | loss    0.010 | w 0.00,0.00,0.00 | 256s
+[dino_classical] ep  260 | steps  16257/24000 | score  191 | ma20  338.3 | eps 0.050 | loss    0.011 | w 0.00,0.00,0.00 | 269s
+[dino_classical] ep  270 | steps  17111/24000 | score  372 | ma20  314.6 | eps 0.050 | loss    0.009 | w 0.00,0.00,0.00 | 283s
+[dino_classical] ep  280 | steps  18644/24000 | score  558 | ma20  474.8 | eps 0.050 | loss    0.008 | w 0.00,0.00,0.00 | 313s
+[dino_classical] ep  290 | steps  20675/24000 | score  836 | ma20  710.0 | eps 0.050 | loss    0.016 | w 0.00,0.00,0.00 | 353s
+[dino_classical] ep  300 | steps  22960/24000 | score 2000 | ma20  860.9 | eps 0.050 | loss    0.022 | w 0.00,0.00,0.00 | 397s
+[dino_classical] EVAL(best) mean 2000.0 median 2000.0 best 2000 (min 2000)
+[dino_classical] saved checkpoint -> C:\Users\minni\Desktop\qiskit_hack\results\dino_classical.pt
+[dino_classical] logs: C:\Users\minni\Desktop\qiskit_hack\results\dino_classical.csv (per-episode) | C:\Users\minni\Desktop\qiskit_hack\results\dino_classical.log (console)

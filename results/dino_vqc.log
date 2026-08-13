@@ -1,0 +1,41 @@
+[dino_vqc] encoder=trainable_cnn obs=zz qubits=6 layers=3 | params: CNN(trainable) 480,294 vs VQC 36 (+lam 6, w 3) | total 480,339
+[dino_vqc] ep    1 | steps     46/24000 | score  182 | ma20  182.0 | eps 0.995 | loss      nan | w 10.00,10.00,10.00 | 0s
+[dino_vqc] ep   10 | steps    530/24000 | score  234 | ma20  209.5 | eps 0.944 | loss      nan | w 10.00,10.00,10.00 | 2s
+[dino_vqc] ep   20 | steps   1068/24000 | score  233 | ma20  211.1 | eps 0.887 | loss    2.139 | w 10.22,9.10,10.44 | 14s
+[dino_vqc] ep   30 | steps   1558/24000 | score  182 | ma20  203.0 | eps 0.836 | loss    0.526 | w 9.84,8.97,10.45 | 32s
+[dino_vqc] ep   40 | steps   2123/24000 | score  187 | ma20  208.6 | eps 0.776 | loss    1.313 | w 9.92,9.51,10.59 | 52s
+[dino_vqc] ep   50 | steps   2629/24000 | score  182 | ma20  211.8 | eps 0.723 | loss    0.658 | w 9.82,9.59,10.64 | 68s
+[dino_vqc] ep   60 | steps   3156/24000 | score  332 | ma20  204.1 | eps 0.667 | loss    0.572 | w 10.19,10.22,10.61 | 86s
+[dino_vqc] ep   70 | steps   3693/24000 | score  187 | ma20  210.6 | eps 0.610 | loss    0.456 | w 10.21,10.29,10.62 | 107s
+[dino_vqc] ep   80 | steps   4279/24000 | score  185 | ma20  222.4 | eps 0.548 | loss    0.635 | w 10.14,10.11,10.56 | 161s
+[dino_vqc] ep   90 | steps   4845/24000 | score  280 | ma20  227.9 | eps 0.489 | loss    0.745 | w 10.21,10.26,10.53 | 184s
+[dino_vqc] ep  100 | steps   5395/24000 | score  228 | ma20  220.9 | eps 0.431 | loss    0.458 | w 10.18,10.17,10.46 | 205s
+[dino_vqc] ep  110 | steps   6050/24000 | score  334 | ma20  238.3 | eps 0.361 | loss    0.623 | w 10.14,10.21,10.41 | 231s
+[dino_vqc] ep  120 | steps   6589/24000 | score  229 | ma20  235.6 | eps 0.305 | loss    0.707 | w 10.15,10.21,10.50 | 253s
+[dino_vqc] ep  130 | steps   7093/24000 | score  182 | ma20  205.7 | eps 0.251 | loss    0.898 | w 10.00,10.04,10.43 | 274s
+[dino_vqc] ep  140 | steps   7608/24000 | score  185 | ma20  201.0 | eps 0.197 | loss    0.641 | w 10.07,10.13,10.41 | 295s
+[dino_vqc] ep  150 | steps   8080/24000 | score  191 | ma20  194.6 | eps 0.147 | loss    0.294 | w 10.08,10.11,10.43 | 317s
+[dino_vqc] ep  160 | steps   8713/24000 | score  320 | ma20  218.4 | eps 0.080 | loss    0.445 | w 10.03,9.81,10.35 | 347s
+[dino_vqc] ep  170 | steps   9195/24000 | score  182 | ma20  220.3 | eps 0.050 | loss    0.391 | w 9.87,9.72,10.21 | 368s
+[dino_vqc] ep  180 | steps   9860/24000 | score  186 | ma20  226.9 | eps 0.050 | loss    0.314 | w 9.83,9.81,10.32 | 398s
+[dino_vqc] ep  190 | steps  10675/24000 | score  185 | ma20  293.8 | eps 0.050 | loss    0.352 | w 9.81,9.76,10.33 | 433s
+[dino_vqc] ep  200 | steps  11428/24000 | score  332 | ma20  310.9 | eps 0.050 | loss    0.419 | w 9.52,9.54,9.80 | 468s
+[dino_vqc] ep  210 | steps  12711/24000 | score  229 | ma20  404.2 | eps 0.050 | loss    0.322 | w 9.36,9.20,9.21 | 532s
+[dino_vqc] ep  220 | steps  13266/24000 | score  190 | ma20  365.1 | eps 0.050 | loss    0.181 | w 8.95,9.32,9.22 | 574s
+[dino_vqc] ep  230 | steps  13775/24000 | score  235 | ma20  210.4 | eps 0.050 | loss    0.251 | w 8.96,9.21,9.11 | 596s
+[dino_vqc] ep  240 | steps  14564/24000 | score  469 | ma20  257.1 | eps 0.050 | loss    0.201 | w 8.90,9.12,9.12 | 631s
+[dino_vqc] ep  250 | steps  15223/24000 | score  190 | ma20  287.4 | eps 0.050 | loss    0.199 | w 8.68,9.25,9.20 | 660s
+[dino_vqc] ep  260 | steps  16236/24000 | score  185 | ma20  332.0 | eps 0.050 | loss    0.263 | w 8.57,9.22,9.02 | 704s
+[dino_vqc] ep  270 | steps  17160/24000 | score  287 | ma20  384.8 | eps 0.050 | loss    0.203 | w 8.65,8.98,8.87 | 748s
+[dino_vqc] ep  280 | steps  18115/24000 | score  672 | ma20  373.3 | eps 0.050 | loss    0.139 | w 8.42,8.91,9.14 | 809s
+[dino_vqc] ep  290 | steps  18718/24000 | score  513 | ma20  308.9 | eps 0.050 | loss    0.182 | w 8.38,8.87,9.24 | 924s
+[dino_vqc] ep  300 | steps  19440/24000 | score  231 | ma20  262.9 | eps 0.050 | loss    0.217 | w 8.58,9.12,9.52 | 1002s
+[dino_vqc] ep  310 | steps  20054/24000 | score  186 | ma20  265.6 | eps 0.050 | loss    0.179 | w 8.49,9.05,9.64 | 1062s
+[dino_vqc] ep  320 | steps  20689/24000 | score  232 | ma20  248.1 | eps 0.050 | loss    0.213 | w 8.58,9.04,9.75 | 1122s
+[dino_vqc] ep  330 | steps  21300/24000 | score  185 | ma20  247.2 | eps 0.050 | loss    0.165 | w 8.59,9.05,9.73 | 1169s
+[dino_vqc] ep  340 | steps  22044/24000 | score  190 | ma20  268.5 | eps 0.050 | loss    0.172 | w 8.48,9.03,9.63 | 1214s
+[dino_vqc] ep  350 | steps  22575/24000 | score  239 | ma20  252.5 | eps 0.050 | loss    0.118 | w 8.52,8.96,9.73 | 1249s
+[dino_vqc] ep  360 | steps  23919/24000 | score 1698 | ma20  372.7 | eps 0.050 | loss    0.137 | w 8.34,8.80,9.63 | 1334s
+[dino_vqc] EVAL(best) mean 1565.2 median 1547.0 best 1875 (min 1434)
+[dino_vqc] saved checkpoint -> C:\Users\minni\Desktop\qiskit_hack\results\dino_vqc.pt
+DONE: {'name': 'dino_vqc', 'episodes': 361, 'env_steps': 24103} eval: 1565.25
