@@ -384,6 +384,39 @@ class _QiskitMLBackend(nn.Module):
         return self.qnn(x)
 
 
+def make_backend(
+    backend: str,
+    circuit,
+    input_params,
+    weight_params,
+    observables,
+    gradient_method: str = DEFAULT_GRADIENT_METHOD,
+    estimator=None,
+    seed: int | None = None,
+) -> nn.Module:
+    """Construct the circuit-evaluation module for `backend`.
+
+    Shared by VQCQFunction and src/models/vqc_policy.py::VQCPolicy. What the
+    output *means* -- a Q-value per action, or a logit per action -- is decided
+    by the head that wraps this, never in here: the circuit, its observables and
+    its gradient path are identical either way. Keeping one constructor is what
+    makes that literally true rather than merely intended.
+    """
+    if backend == "torch_sv":
+        return _TorchStatevectorBackend(circuit, input_params, weight_params, observables, seed=seed)
+    if backend == "qtm":
+        return _QTMBackend(circuit, input_params, weight_params, observables, seed=seed)
+    return _QiskitMLBackend(
+        circuit,
+        input_params,
+        weight_params,
+        observables,
+        gradient_method=gradient_method,
+        estimator=estimator,
+        seed=seed,
+    )
+
+
 class VQCQFunction(QFunction):
     def __init__(
         self,
@@ -433,22 +466,16 @@ class VQCQFunction(QFunction):
         self._input_params = input_params
         self._weight_params = weight_params
 
-        if backend == "torch_sv":
-            self.vqc = _TorchStatevectorBackend(
-                circuit, input_params, weight_params, observables, seed=seed
-            )
-        elif backend == "qtm":
-            self.vqc = _QTMBackend(circuit, input_params, weight_params, observables, seed=seed)
-        else:
-            self.vqc = _QiskitMLBackend(
-                circuit,
-                input_params,
-                weight_params,
-                observables,
-                gradient_method=gradient_method,
-                estimator=estimator,
-                seed=seed,
-            )
+        self.vqc = make_backend(
+            backend,
+            circuit,
+            input_params,
+            weight_params,
+            observables,
+            gradient_method=gradient_method,
+            estimator=estimator,
+            seed=seed,
+        )
 
     def forward(self, states: torch.Tensor) -> torch.Tensor:
         normalized = normalize_observation(states)  # [B, n_qubits]

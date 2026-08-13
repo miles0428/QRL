@@ -26,21 +26,27 @@ the resolved versions of all dependencies at the top of its log.
 ```
 qdqn-cartpole/
 ├── configs/
-│   ├── qdqn.yaml           # quantum agent hyperparameters
-│   └── mlp_baseline.yaml   # classical control hyperparameters
+│   ├── qdqn.yaml           # quantum agent hyperparameters (DQN)
+│   ├── mlp_baseline.yaml   # classical control hyperparameters (DQN)
+│   ├── qpg.yaml            # quantum agent hyperparameters (REINFORCE)
+│   └── mlp_pg.yaml         # classical control hyperparameters (REINFORCE)
 ├── src/
 │   ├── models/
-│   │   ├── base.py         # QFunction ABC + shared observation normalization
+│   │   ├── base.py         # QFunction / PolicyFunction ABCs + shared obs normalization
 │   │   ├── vqc.py          # VQC Q-function (TorchConnector)
-│   │   └── mlp.py          # classical baseline, param-count matched
-│   ├── replay.py           # experience replay buffer
+│   │   ├── vqc_policy.py   # VQC softmax policy -- same circuit, policy head
+│   │   └── mlp.py          # classical baselines (Q-function + policy), param-matched
+│   ├── replay.py           # experience replay buffer (DQN only)
 │   ├── trainer.py          # model-agnostic DQN loop -- does NOT import qiskit
-│   ├── evaluate.py         # greedy rollouts + solve criterion
+│   ├── pg_trainer.py       # model-agnostic REINFORCE loop -- does NOT import qiskit
+│   ├── evaluate.py         # greedy rollouts + solve criterion (shared by both)
 │   ├── seeds.py            # reproducibility
 │   └── plots.py            # all 8 figure-generation functions
 ├── scripts/
-│   ├── train.py             # train one (config, seed)
+│   ├── train.py             # train one (config, seed) -- DQN
+│   ├── train_pg.py          # train one (config, seed) -- policy gradient
 │   ├── sweep_seeds.py       # train across multiple seeds, with a performance gate
+│   ├── summarize.py         # per-seed table for a tag; A/B between two
 │   └── make_figures.py      # generate all figures from results/ + checkpoints
 ├── results/                 # results/{config}_{seed}.csv, results/{config}_{seed}_final.pt
 └── figures/                 # 8 required figures, PNG (150dpi) + PDF
@@ -51,6 +57,36 @@ qdqn-cartpole/
 `.state_dict()`) plus optional `getattr(model, "w"/"lam", None)` lookups for CSV logging.
 Swapping the model for a different ansatz means writing a new `src/models/*.py` and
 pointing a config at it -- `trainer.py` and `evaluate.py` don't change.
+`src/pg_trainer.py` obeys the same rule.
+
+### Two algorithms, one circuit
+
+The policy-gradient path reuses the quantum model wholesale. `VQCPolicy` imports
+`build_circuit` and `make_backend` from `vqc.py`, so a QPG agent and a QDQN agent
+share the same ansatz, the same `["ZZII", "IIZZ"]` observables, the same trainable
+input scaling `lam`, and the same `torch_sv` backend. They differ in exactly two
+places:
+
+| | QDQN (`vqc.py`) | QPG (`vqc_policy.py`) |
+|---|---|---|
+| head | `w * (<O> + 1) / 2`, per-action weight | `beta * <O>`, softmax; single inverse temperature |
+| why | must reach Q\* ~ 99 | only logit *differences* matter -- softmax is shift-invariant |
+| exploration | epsilon schedule | sampling from pi; `beta` is trained, so it anneals itself |
+| trainer | `trainer.py` (replay, target net, TD loss) | `pg_trainer.py` (on-policy rounds, return-to-go, baseline) |
+| params | 46 (40 circuit + 4 lam + 2 w) | 45 (40 circuit + 4 lam + 1 beta) |
+
+That makes qdqn-vs-qpg a comparison of *algorithms* rather than of two
+independently-tuned circuits. `evaluate.py` is shared verbatim: `argmax(logits)`
+equals `argmax(softmax(logits))`, which is why greedy evaluation needs no
+policy-specific branch (`beta` is held positive through a softplus so this cannot
+silently invert -- see `vqc_policy.py`).
+
+`pg_trainer.py` writes the DQN CSV header plus two appended columns (`entropy`,
+`beta`), so `scripts/summarize.py` and `src/plots.py` read QPG runs unchanged:
+
+```bash
+python scripts/summarize.py "" --config qpg
+```
 
 ## Model spec
 
@@ -133,12 +169,18 @@ optimizer = torch.optim.Adam([
 ## Running
 
 ```bash
-# Train one (config, seed):
+# Train one (config, seed) -- DQN:
 python scripts/train.py --config configs/mlp_baseline.yaml --seed 0
 python scripts/train.py --config configs/qdqn.yaml --seed 0
 
-# Sweep multiple seeds (5 minimum, 10 if runtime allows):
+# Train one (config, seed) -- policy gradient (REINFORCE + baseline):
+python scripts/train_pg.py --config configs/mlp_pg.yaml --seed 0
+python scripts/train_pg.py --config configs/qpg.yaml --seed 0 --max-wall-clock-s 600
+
+# Sweep multiple seeds (5 minimum, 10 if runtime allows). Dispatches on the
+# config's model type, so it takes either algorithm:
 python scripts/sweep_seeds.py --config configs/mlp_baseline.yaml --seeds 0 1 2 3 4
+python scripts/sweep_seeds.py --config configs/qpg.yaml --seeds 0 1 2 3 4
 
 # Final greedy evaluation (epsilon=0, 100 episodes) of a trained model:
 python -m src.evaluate  # see src/evaluate.py::evaluate() for programmatic use

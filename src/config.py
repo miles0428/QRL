@@ -54,6 +54,15 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("optim", "lr_output_scaling"): "lr_w",
     ("optim", "lr"): "lr",
     ("optim", "amsgrad"): "amsgrad",
+    # Policy-gradient only; ignored by the DQN path. See src/pg_trainer.py.
+    ("model", "beta_init"): "beta_init",
+    ("model", "trainable_beta"): "trainable_beta",
+    ("optim", "lr_beta"): "lr_beta",
+    ("trainer", "episodes_per_update"): "episodes_per_update",
+    ("trainer", "baseline"): "baseline",
+    ("trainer", "normalize_advantages"): "normalize_advantages",
+    ("trainer", "entropy_coef"): "entropy_coef",
+    ("trainer", "max_grad_norm"): "max_grad_norm",
     ("gradient", "method"): "gradient_method",
     ("gradient", "backend"): "backend",
     ("eval", "solve_threshold"): "solve_threshold",
@@ -106,9 +115,42 @@ DEFAULTS: dict[str, Any] = {
     # v3 training backend. Not qtm: see the backend note in configs/qdqn.yaml.
     "backend": "torch_sv",
     "gradient_method": "adjoint",
+    # --- policy gradient (model_type vqc_policy | mlp_policy) ----------------
+    # Unused by the DQN path, and vice versa: a config declares one model_type,
+    # and the keys the other algorithm needs simply sit at their defaults. They
+    # live in the same DEFAULTS dict so that normalize_config() stays the single
+    # place that knows the file layout.
+    "beta_init": 1.0,
+    "trainable_beta": True,
+    "lr_beta": 0.1,  # like lr_w on the DQN side: the head must move faster than the circuit
+    "episodes_per_update": 8,
+    "baseline": "batch_mean",  # "batch_mean" | "none"
+    "normalize_advantages": True,
+    "entropy_coef": 0.0,
+    "max_grad_norm": None,
 }
 
 REQUIRED = ("name", "model_type", "max_episodes")
+
+# Which trainer a model_type belongs to. scripts/train.py and
+# scripts/train_pg.py each check this rather than silently running a policy
+# through the TD loss (which would "work" -- softmax logits are shaped exactly
+# like Q-values -- and produce a plausible, meaningless curve).
+MODEL_ALGO = {
+    "vqc": "dqn",
+    "mlp": "dqn",
+    "vqc_policy": "pg",
+    "mlp_policy": "pg",
+}
+
+
+def algo_for(config: dict) -> str:
+    model_type = config["model_type"]
+    if model_type not in MODEL_ALGO:
+        raise ValueError(
+            f"unknown model type {model_type!r}; expected one of {sorted(MODEL_ALGO)}"
+        )
+    return MODEL_ALGO[model_type]
 
 
 def normalize_config(raw: dict) -> dict:
@@ -142,6 +184,14 @@ def normalize_config(raw: dict) -> dict:
         raise ValueError(
             f"unknown eps_schedule {flat['epsilon_schedule']!r}; "
             f"expected 'exponential_episodes' or 'linear_steps'"
+        )
+    if flat["baseline"] not in ("batch_mean", "none"):
+        raise ValueError(
+            f"unknown baseline {flat['baseline']!r}; expected 'batch_mean' or 'none'"
+        )
+    if flat["model_type"] not in MODEL_ALGO:
+        raise ValueError(
+            f"unknown model type {flat['model_type']!r}; expected one of {sorted(MODEL_ALGO)}"
         )
     if flat.get("observables") is not None:
         flat["observables"] = list(flat["observables"])

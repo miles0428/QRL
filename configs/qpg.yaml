@@ -1,0 +1,84 @@
+# Quantum agent: VQC softmax policy, trained with REINFORCE + baseline.
+#
+# THE CIRCUIT IS THE ONE FROM configs/qdqn.yaml, UNCHANGED. Same 4 qubits, same
+# 5 layers, same data re-uploading, same ["ZZII", "IIZZ"] observables, same
+# torch_sv backend, same per-qubit input scaling lam. Only the head and the
+# learning algorithm differ (see src/models/vqc_policy.py). That is deliberate:
+# holding the model fixed is what makes qdqn vs qpg a comparison of algorithms
+# rather than of two separately-tuned circuits.
+#
+# PROVENANCE. The circuit settings inherit qdqn.yaml's provenance (Skolik et
+# al.'s published implementation). The policy head follows Jerbi et al. 2021
+# (arXiv:2103.05577), "Parametrized Quantum Policies for Reinforcement
+# Learning" -- softmax over per-action observables with a trainable inverse
+# temperature. The REINFORCE hyperparameters below are marked GUESS where they
+# are ours; they have not been tuned across seeds yet.
+name: qpg
+
+model:
+  type: vqc_policy
+  n_qubits: 4
+  n_layers: 5
+  reuploading: true
+  observables: ["ZZII", "IIZZ"]
+  # Inverse temperature. beta=1 with observables in [-1,1] means logits in
+  # [-1,1], so the initial policy is close to uniform (max ~0.88/0.12 split) --
+  # the right starting point for on-policy exploration, which is why this needs
+  # no epsilon schedule. Stored through softplus so it cannot cross zero; see
+  # the docstring in src/models/vqc_policy.py for why that matters to evaluate.py.
+  beta_init: 1.0
+  trainable_beta: true
+
+trainer:
+  episodes: 5000
+  gamma: 0.99
+  # Environments stepped in lockstep. Under PG this is also the natural unit of
+  # on-policy collection: one synchronized ROUND is n_envs complete episodes
+  # gathered under one fixed set of parameters. See src/pg_trainer.py.
+  n_envs: 8
+  # Batch size in EPISODES, rounded up to a whole number of rounds. 16 = two
+  # rounds of 8. GUESS: larger batches cut REINFORCE's variance but make each
+  # gradient step buy less; 16 is a starting point, not a tuned value.
+  episodes_per_update: 16
+  # CartPole's rewards are all +1, so every return-to-go is positive and plain
+  # REINFORCE would raise the probability of every action it ever took. The
+  # batch-mean baseline is what exposes the relative signal -- not optional here.
+  baseline: batch_mean
+  # Keeps the gradient scale roughly constant as episodes grow from ~20 to ~500
+  # steps, which otherwise shifts the effective learning rate by ~10x over a run.
+  normalize_advantages: true
+  # GUESS: 0.0. The trainable beta already controls policy sharpness, so an
+  # entropy bonus is a second knob on the same quantity. Raise to ~0.01 only if
+  # runs collapse to a deterministic policy early.
+  entropy_coef: 0.0
+  max_grad_norm: 1.0  # GUESS: REINFORCE gradients are heavy-tailed
+  max_steps_per_episode: 500
+
+optim:
+  lr_variational: 0.01     # circuit weights. GUESS: 10x the DQN value -- PG takes
+                           # far fewer gradient steps (one per 16 episodes, vs one
+                           # per 10 env steps), so each has to move further.
+  lr_input_scaling: 0.01   # lam
+  lr_beta: 0.1             # the head, as on the DQN side: must move fastest
+
+gradient:
+  method: adjoint
+  # Same torch-statevector backend as the DQN runs: the Qiskit circuit compiled
+  # once (src/models/torch_statevector.py::compile_circuit) and evaluated as
+  # torch tensor algebra, exact gradients from autograd in one reverse pass.
+  # PG suits this backend particularly well -- a whole batch of episodes is ONE
+  # [T, n_qubits] forward, so a 500-step episode costs about one circuit
+  # evaluation rather than 500.
+  backend: torch_sv
+
+eval:
+  solve_threshold: 475.0
+  solve_window: 100
+  env_id: CartPole-v1
+  # Unlike the DQN runs, the training reward columns here are NOT depressed by
+  # an exploration schedule -- they are recorded on samples from the policy
+  # itself. They still understate the greedy policy while it remains stochastic,
+  # so the greedy curve is kept for comparability with the qdqn figures.
+  eval_every: 50
+  eval_episodes: 5
+  final_eval_episodes: 100

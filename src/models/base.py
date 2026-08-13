@@ -45,6 +45,30 @@ class QFunction(nn.Module, ABC):
         ...
 
 
+class PolicyFunction(nn.Module, ABC):
+    """Policy network: forward(states) -> Tensor[B, n_actions] of LOGITS.
+
+    Same tensor shape as QFunction, deliberately different meaning: these go
+    through a softmax to give pi(a|s), they are not action values. Two
+    consequences worth stating, because both are load-bearing elsewhere.
+
+    Logits, not probabilities. The softmax lives in the loss
+    (torch.distributions.Categorical(logits=...)), which is numerically stabler
+    than taking log() of a softmax we computed ourselves, and it keeps the
+    forward() contract identical to QFunction's.
+
+    argmax is still the greedy policy. softmax is monotone, so
+    argmax(logits) == argmax(pi). That is why src/evaluate.py works verbatim on
+    a PolicyFunction -- greedy evaluation needs no policy-specific branch. It
+    holds only while the inverse temperature is positive; see
+    src/models/vqc_policy.py::VQCPolicy for how that is guaranteed.
+    """
+
+    @abstractmethod
+    def forward(self, states: torch.Tensor) -> torch.Tensor:
+        ...
+
+
 if __name__ == "__main__":
     raw = torch.tensor([[0.1, -1.5, 0.05, 2.0], [3.0, 0.0, -0.3, -5.0]], dtype=torch.float32)
     normed = normalize_observation(raw)

@@ -13,12 +13,39 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from src.models.base import QFunction, normalize_observation
+from src.models.base import PolicyFunction, QFunction, normalize_observation
 
 DEFAULT_HIDDEN = 6  # 7*6 + 2 = 44 params, vs VQC's 46 (default config) -- see README
 
 
 class MLPQFunction(QFunction):
+    def __init__(self, n_inputs: int = 4, hidden: int = DEFAULT_HIDDEN, n_actions: int = 2):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_inputs, hidden),
+            nn.Tanh(),
+            nn.Linear(hidden, n_actions),
+        )
+
+    def forward(self, states: torch.Tensor) -> torch.Tensor:
+        normalized = normalize_observation(states)
+        return self.net(normalized)
+
+
+class MLPPolicy(PolicyFunction):
+    """Classical policy-gradient baseline, parameter-matched to VQCPolicy.
+
+    Same body as MLPQFunction -- only the output contract differs (logits, not
+    Q-values), so hidden=6 gives 44 parameters against VQCPolicy's 45 (40
+    circuit + 4 lam + 1 beta). The match is even closer than on the DQN side.
+
+    No explicit inverse temperature. A linear output layer can already scale its
+    own logits without bound, so a beta here would be redundant -- unlike the
+    quantum head, whose expectation values are hard-bounded to [-1, 1] and
+    therefore cannot sharpen the policy on their own. That asymmetry is a real
+    property of the two models, not an inconsistency in the comparison.
+    """
+
     def __init__(self, n_inputs: int = 4, hidden: int = DEFAULT_HIDDEN, n_actions: int = 2):
         super().__init__()
         self.net = nn.Sequential(
