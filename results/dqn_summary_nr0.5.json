@@ -1,0 +1,101 @@
+{
+  "noise_rabi": 0.5,
+  "dqn": {
+    "full": {
+      "n_seeds": 3,
+      "mean": 120.88908982737233,
+      "std": 10.380214862074004,
+      "best": 132.7879068901985,
+      "worst": 113.68969131125162,
+      "survival": 0.02,
+      "per_seed": {
+        "0": 116.18967128066684,
+        "1": 132.7879068901985,
+        "2": 113.68969131125162
+      }
+    },
+    "masked": {
+      "n_seeds": 3,
+      "mean": 1.6054741667771133,
+      "std": 0.7804499433651538,
+      "best": 2.5057237972973145,
+      "worst": 1.1197815829638282,
+      "survival": 0.0,
+      "per_seed": {
+        "0": 1.1909171200701976,
+        "1": 1.1197815829638282,
+        "2": 2.5057237972973145
+      }
+    },
+    "masked_hist": {
+      "n_seeds": 3,
+      "mean": 1.7384367801677385,
+      "std": 1.1191513257256236,
+      "best": 3.026349106436117,
+      "worst": 1.002496543640917,
+      "survival": 0.0,
+      "per_seed": {
+        "0": 1.1864646904261813,
+        "1": 3.026349106436117,
+        "2": 1.002496543640917
+      }
+    }
+  },
+  "baselines": {
+    "greedy_baseline:greedy": {
+      "policy": "greedy",
+      "episodes": 50,
+      "return_mean": 138.79949530975114,
+      "return_std": 126.02940916560833,
+      "return_median": 102.33583832272703,
+      "length_mean": 156.56,
+      "length_median": 118.0,
+      "survival_rate": 0.02,
+      "idle_frac": 0.2804611399554658
+    },
+    "greedy_baseline:idle": {
+      "policy": "idle",
+      "episodes": 50,
+      "return_mean": 0.5827084984602959,
+      "return_std": 7.017701167847738,
+      "return_median": -1.5237283520062916,
+      "length_mean": 7.48,
+      "length_median": 5.0,
+      "survival_rate": 0.0,
+      "idle_frac": 1.0
+    },
+    "greedy_baseline:random": {
+      "policy": "random",
+      "episodes": 50,
+      "return_mean": -2.2665204847179705,
+      "return_std": 2.598560375826423,
+      "return_median": -3.568167440343947,
+      "length_mean": 3.64,
+      "length_median": 2.0,
+      "survival_rate": 0.0,
+      "idle_frac": 0.15978066378066377
+    },
+    "masked:greedy_pf": {
+      "policy": "greedy_pf",
+      "episodes": 50,
+      "return_mean": 1.7681238329309645,
+      "return_std": 8.644356840169385,
+      "return_median": -1.7494772737788558,
+      "length_mean": 8.74,
+      "survival_rate": 0.0,
+      "idle_frac": 0.8404316652063764,
+      "phi_err_mean_rad": 1.2514759764602295
+    },
+    "masked:greedy_pf_probe": {
+      "policy": "greedy_pf_probe",
+      "episodes": 50,
+      "return_mean": 7.230239684425308,
+      "return_std": 19.25108710547062,
+      "return_median": -1.0702558328854779,
+      "length_mean": 15.02,
+      "survival_rate": 0.0,
+      "idle_frac": 0.4564544629520555,
+      "phi_err_mean_rad": 1.1976692991693445
+    }
+  }
+}

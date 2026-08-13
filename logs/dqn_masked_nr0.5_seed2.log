@@ -1,0 +1,19 @@
+[masked seed2] input dim 2, sigma_ou 0.09935 (noise/Rabi 0.5), 150000 env steps
+  step   10000  eps 0.683  train20    -0.14  eval     0.24 +- 6.1    len    7.0  surv   0%
+  step   20000  eps 0.367  train20    -0.44  eval    -0.85 +- 4.4    len    5.7  surv   0%
+  step   30000  eps 0.050  train20     1.83  eval    -0.32 +- 6.4    len    6.2  surv   0%
+  step   40000  eps 0.050  train20     1.64  eval    -0.96 +- 3.4    len    5.3  surv   0%
+  step   50000  eps 0.050  train20     1.09  eval    -0.03 +- 6.4    len    6.5  surv   0%
+  step   60000  eps 0.050  train20    -0.49  eval     2.01 +- 10.1   len    9.1  surv   0%
+  step   70000  eps 0.050  train20    -0.76  eval     3.21 +- 11.7   len   10.3  surv   0%
+  step   80000  eps 0.050  train20     0.79  eval     2.35 +- 10.4   len    9.4  surv   0%
+  step   90000  eps 0.050  train20     0.22  eval    -0.63 +- 6.7    len    5.8  surv   0%
+  step  100000  eps 0.050  train20     4.54  eval     0.44 +- 7.9    len    7.0  surv   0%
+  step  110000  eps 0.050  train20    -0.54  eval    -1.83 +- 2.9    len    4.3  surv   0%
+  step  120000  eps 0.050  train20     4.17  eval    -0.80 +- 4.7    len    5.5  surv   0%
+  step  130000  eps 0.050  train20     1.07  eval    -1.50 +- 3.6    len    4.7  surv   0%
+  step  140000  eps 0.050  train20     0.75  eval    -2.06 +- 2.2    len    4.1  surv   0%
+  step  150000  eps 0.050  train20    -0.72  eval    -0.22 +- 5.9    len    6.3  surv   0%
+  FINAL (50 greedy eps): 2.51 +- 9.14  median -1.56  len 9.3  survive 0%
+  12.3 min
+  wrote results\dqn_masked_nr0.5_seed2.json

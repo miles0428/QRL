@@ -1,0 +1,19 @@
+[masked_hist seed1] input dim 56, sigma_ou 0.09935 (noise/Rabi 0.5), 150000 env steps
+  step   10000  eps 0.683  train20    -0.94  eval    -1.42 +- 3.9    len    4.8  surv   0%
+  step   20000  eps 0.367  train20    -1.56  eval     0.20 +- 6.5    len    6.8  surv   0%
+  step   30000  eps 0.050  train20     5.66  eval     2.19 +- 9.6    len    9.1  surv   0%
+  step   40000  eps 0.050  train20    -0.53  eval     0.31 +- 6.9    len    6.8  surv   0%
+  step   50000  eps 0.050  train20    -2.18  eval    -2.31 +- 2.7    len    3.6  surv   0%
+  step   60000  eps 0.050  train20    -0.70  eval     0.11 +- 7.7    len    6.5  surv   0%
+  step   70000  eps 0.050  train20    -0.51  eval    -0.97 +- 4.2    len    5.2  surv   0%
+  step   80000  eps 0.050  train20     4.50  eval    -0.14 +- 5.7    len    6.3  surv   0%
+  step   90000  eps 0.050  train20    -0.18  eval     2.02 +- 9.3    len    8.7  surv   0%
+  step  100000  eps 0.050  train20     1.70  eval     3.11 +- 10.8   len   10.0  surv   0%
+  step  110000  eps 0.050  train20     1.01  eval     1.71 +- 9.0    len    8.7  surv   0%
+  step  120000  eps 0.050  train20     4.10  eval    -1.14 +- 5.8    len    5.2  surv   0%
+  step  130000  eps 0.050  train20     2.32  eval     0.10 +- 6.2    len    6.6  surv   0%
+  step  140000  eps 0.050  train20     1.93  eval     1.17 +- 6.4    len    8.0  surv   0%
+  step  150000  eps 0.050  train20     3.22  eval     0.82 +- 6.7    len    7.5  surv   0%
+  FINAL (50 greedy eps): 3.03 +- 9.20  median -0.20  len 10.0  survive 0%
+  11.6 min
+  wrote results\dqn_masked_hist_nr0.5_seed1.json
