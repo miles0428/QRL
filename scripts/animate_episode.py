@@ -88,6 +88,8 @@ def rollout(policy, sigma, seed, feat=None, net=None, algo="dqn"):
     while not (term or trunc):
         if policy == "greedy":
             a = greedy.act(env._state.full().ravel())
+        elif policy == "idle":
+            a = IDLE
         else:
             a = greedy_action(net, s, algo)
         obs, r, term, trunc, info = env.step(a)
@@ -191,7 +193,7 @@ def animate(ep, seed, label, out, stride=2, fps=25, dpi=70, figsize=(9.5, 4.3)):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--policy", choices=["greedy", "checkpoint"], default="greedy")
+    p.add_argument("--policy", choices=["greedy", "idle", "checkpoint"], default="greedy")
     p.add_argument("--ckpt", default=None)
     p.add_argument("--noise-rabi", type=float, default=0.35)
     p.add_argument("--seeds", default="1000-1029", help="eval seeds to search, e.g. 1000-1029")
@@ -222,6 +224,8 @@ def main():
         print(f"loaded {args.ckpt}: {label}")
         print(f"  its recorded final eval: {ck['final']['return_mean']:.2f} "
               f"({ck['final']['survival_rate']*100:.0f}% survive)")
+    elif args.policy == "idle":
+        label = "always IDLE (no control)"
     else:
         label = "greedy (one-step lookahead)"
 
