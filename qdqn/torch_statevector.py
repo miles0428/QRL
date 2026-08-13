@@ -311,12 +311,18 @@ def simulate(
     encoding: torch.Tensor,
     weights: torch.Tensor,
     obs_matrices: torch.Tensor,
+    return_state: bool = False,
 ) -> torch.Tensor:
     """Run the circuit on a batch and return expectation values.
 
     encoding: [B, n_encoding] real, one angle set per batch element.
     weights:  [n_weights] real, shared across the batch.
-    returns:  [B, n_obs] real.
+    returns:  [B, n_obs] real, or (expvals, psi) when return_state=True.
+
+    return_state is the only addition to this file relative to the
+    qdqn-cartpole branch. The final state is already computed here; exposing it
+    lets scripts/qdqn_internals.py show the amplitudes the circuit actually
+    holds, without duplicating the simulation loop.
 
     Everything is differentiable torch, so `.backward()` gives exact gradients
     w.r.t. both `weights` and `encoding` in a single reverse pass. The gradient
@@ -393,6 +399,8 @@ def simulate(
 
     psi = state.reshape(batch, compiled.dim)
     expvals = torch.einsum("bi,oij,bj->bo", psi.conj(), obs_matrices, psi)
+    if return_state:
+        return expvals.real, psi
     return expvals.real
 
 
