@@ -23,11 +23,17 @@ def build_model(config: dict) -> QFunction:
     if mtype == "vqc":
         from .vqc import VQCQFunction
         return VQCQFunction(model_cfg, norm_cfg)
+    if mtype == "dueling":
+        from .dueling import DuelingVQCQFunction
+        return DuelingVQCQFunction(model_cfg, norm_cfg)
+    if mtype == "distributional":
+        from .distributional import DistributionalVQC
+        return DistributionalVQC(model_cfg, norm_cfg)
     if mtype == "mlp":
         from .mlp import MLPQFunction
         return MLPQFunction(model_cfg, norm_cfg)
 
-    raise ValueError(f"Unknown model type {mtype!r}. Expected 'vqc' or 'mlp'.")
+    raise ValueError(f"Unknown model type {mtype!r}. Expected 'vqc', 'dueling', or 'mlp'.")
 
 
 __all__ = ["QFunction", "build_model"]
