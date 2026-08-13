@@ -1,3 +1,6 @@
 [vqc(9q x 5L) sxy_prevact seed0] input dim 9, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 env steps
   observables: ['ZZIIIIIII', 'IIZZIIIII', 'IIIIZZIII', 'IIIIIIZZI', 'ZIIIIIIIZ']
   batch 16, train_every 10, target_every 30, lr w/lam/circuit 0.1/0.001/0.001
+  step   10000  eps 0.683  train20    -1.02  eval     0.83 +- 7.7    len    7.7  surv   0%
+  step   20000  eps 0.367  train20     4.26  eval    20.94 +- 36.5   len   31.4  surv   0%
+  step   30000  eps 0.050  train20     2.46  eval     8.89 +- 11.5   len   16.4  surv   0%
