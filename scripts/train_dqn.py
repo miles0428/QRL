@@ -142,6 +142,54 @@ class QNet(nn.Module):
         return self.net(x)
 
 
+def default_observables(n_qubits: int, n_actions: int) -> list[str]:
+    """
+    One Pauli string per action, ZZ on a consecutive pair, striding and wrapping.
+
+    Follows the qdqn-cartpole config's choice of two-qubit tensor products over
+    single-qubit Z ("performance depends critically on observable choice"), just
+    generalized past CartPole's 4 qubits / 2 actions.
+    """
+    out = []
+    for i in range(n_actions):
+        s = ["I"] * n_qubits
+        s[(2 * i) % n_qubits] = "Z"
+        s[(2 * i + 1) % n_qubits] = "Z"
+        out.append("".join(s))
+    return out
+
+
+def build_qnet(args, dim: int):
+    """MLP head, or the VQC Q-function copied from the qdqn-cartpole branch."""
+    if args.model == "mlp":
+        return QNet(dim, args.width)
+    from qdqn import VQCQFunction  # imported lazily so MLP runs need no qiskit
+
+    return VQCQFunction(
+        n_qubits=dim,                       # one observation dimension per qubit
+        n_layers=args.n_layers,
+        n_actions=N_ACTIONS,
+        reuploading=args.reuploading,
+        observables=default_observables(dim, N_ACTIONS),
+        backend="torch_sv",
+        seed=args.seed,
+        output_rescaling=True,
+        per_layer_encoding=args.per_layer_encoding,
+    )
+
+
+def build_optimizer(args, net):
+    """VQC needs three learning rates; w must climb from 1 to ~tens fast."""
+    if args.model == "mlp":
+        return torch.optim.Adam(net.parameters(), lr=args.lr)
+    circuit_w = [p for n, p in net.named_parameters() if n not in ("lam", "w")]
+    return torch.optim.Adam([
+        {"params": circuit_w, "lr": args.lr_variational},
+        {"params": [net.lam], "lr": args.lr_input_scaling},
+        {"params": [net.w], "lr": args.lr_output_scaling},
+    ])
+
+
 class Replay:
     def __init__(self, cap: int, dim: int):
         self.cap = cap
@@ -217,10 +265,10 @@ def train(args):
 
     feat = Featurizer(args.obs, hist=args.hist)
     eval_feat = Featurizer(args.obs, hist=args.hist)
-    net = QNet(feat.dim, args.width)
-    tgt = QNet(feat.dim, args.width)
+    net = build_qnet(args, feat.dim)
+    tgt = build_qnet(args, feat.dim)
     tgt.load_state_dict(net.state_dict())
-    opt = torch.optim.Adam(net.parameters(), lr=args.lr)
+    opt = build_optimizer(args, net)
     buf = Replay(args.replay, feat.dim)
 
     env = make_env(sigma, seed=args.seed)
@@ -241,8 +289,14 @@ def train(args):
     best_state = None
     t0 = time.time()
 
-    print(f"[{args.obs} seed{args.seed}] input dim {feat.dim}, sigma_ou {sigma:.5f} "
+    tag = args.model if args.model == "mlp" else f"vqc({feat.dim}q x {args.n_layers}L)"
+    print(f"[{tag} {args.obs} seed{args.seed}] input dim {feat.dim}, sigma_ou {sigma:.5f} "
           f"(noise/Rabi {args.noise_rabi}), {args.steps} env steps")
+    if args.model == "vqc":
+        print(f"  observables: {default_observables(feat.dim, N_ACTIONS)}")
+        print(f"  batch {args.batch}, train_every {args.train_every}, "
+              f"target_every {args.target_every}, lr w/lam/circuit "
+              f"{args.lr_output_scaling}/{args.lr_input_scaling}/{args.lr_variational}")
 
     for step in range(1, args.steps + 1):
         eps = max(args.eps_end, 1.0 + (args.eps_end - 1.0) * step / args.eps_decay)
@@ -356,11 +410,30 @@ def main():
     p.add_argument("--eval-every", type=int, default=10_000)
     p.add_argument("--eval-episodes", type=int, default=20)
     p.add_argument("--final-episodes", type=int, default=50)
+    # --- quantum Q-function (ported from the qdqn-cartpole branch) -----------
+    p.add_argument("--model", choices=["mlp", "vqc"], default="mlp")
+    p.add_argument("--n-layers", type=int, default=5)
+    p.add_argument("--reuploading", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--per-layer-encoding", action=argparse.BooleanOptionalAction,
+                   default=True)
+    # three separate rates, per configs/qdqn.yaml: w must climb from 1 to ~tens
+    p.add_argument("--lr-variational", type=float, default=1e-3)
+    p.add_argument("--lr-input-scaling", type=float, default=1e-3)
+    p.add_argument("--lr-output-scaling", type=float, default=1e-1)
     p.add_argument("--select-seed0", type=int, default=2000,
                    help="seed band for checkpoint selection; must not overlap the "
                         "reporting band (1000..1000+final_episodes)")
     p.add_argument("--out", default=None)
     args = p.parse_args()
+    if args.model == "vqc":
+        # Trainer settings from configs/qdqn.yaml, applied unless explicitly
+        # overridden on the command line. A gradient step through a circuit
+        # costs far more than an environment step, so steps_per_update=10 is
+        # the single largest wall-clock lever; target_update_every there is 3
+        # gradient steps, i.e. every 30 environment steps here.
+        for name, val in (("batch", 16), ("train_every", 10), ("target_every", 30)):
+            if getattr(args, name) == p.get_default(name):
+                setattr(args, name, val)
     train(args)
 
 

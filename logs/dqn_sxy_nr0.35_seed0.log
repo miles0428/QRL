@@ -1,1 +1,19 @@
 [sxy seed0] input dim 4, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 env steps
+  step   10000  eps 0.683  train20    -0.48  eval   186.42 +- 156.0  len  231.2  surv  20%
+  step   20000  eps 0.367  train20    11.94  eval   178.39 +- 158.5  len  222.8  surv  25%
+  step   30000  eps 0.050  train20    44.45  eval    93.42 +- 110.2  len  122.2  surv   5%
+  step   40000  eps 0.050  train20    97.41  eval   264.56 +- 177.7  len  298.7  surv  40%
+  step   50000  eps 0.050  train20    82.59  eval   138.88 +- 124.4  len  184.4  surv  10%
+  step   60000  eps 0.050  train20    53.03  eval   294.11 +- 183.1  len  322.6  surv  50%
+  step   70000  eps 0.050  train20   140.40  eval   346.35 +- 157.1  len  383.2  surv  60%
+  step   80000  eps 0.050  train20    65.79  eval   193.91 +- 147.3  len  225.0  surv  20%
+  step   90000  eps 0.050  train20    80.59  eval   259.08 +- 161.5  len  295.0  surv  30%
+  step  100000  eps 0.050  train20    96.95  eval   198.32 +- 159.4  len  232.6  surv  15%
+  step  110000  eps 0.050  train20   125.15  eval   312.59 +- 172.1  len  349.4  surv  45%
+  step  120000  eps 0.050  train20    92.83  eval   222.30 +- 164.8  len  260.4  surv  30%
+  step  130000  eps 0.050  train20   163.89  eval   295.99 +- 171.8  len  340.4  surv  55%
+  step  140000  eps 0.050  train20    85.13  eval   293.78 +- 190.9  len  323.9  surv  50%
+  step  150000  eps 0.050  train20   133.87  eval   285.67 +- 190.5  len  315.8  surv  45%
+  FINAL (50 greedy eps): 363.87 +- 138.45  median 448.11  len 403.6  survive 60%
+  20.8 min
+  wrote results\dqn_sxy_nr0.35_seed0.json

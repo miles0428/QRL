@@ -1,1 +1,19 @@
 [PPO sxy_prevact seed0] dim 9, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 steps, 73 updates
+  step   10240  train20     8.06  eval     5.60 +- 15.3   len   13.8  surv   0%
+  step   20480  train20     5.50  eval   352.39 +- 185.3  len  377.9  surv  65%
+  step   30720  train20    18.60  eval   355.56 +- 176.5  len  386.6  surv  65%
+  step   40960  train20    24.00  eval   335.67 +- 179.5  len  360.8  surv  60%
+  step   51200  train20    12.95  eval   365.50 +- 173.6  len  393.1  surv  65%
+  step   61440  train20    21.97  eval   131.43 +- 146.7  len  153.4  surv  15%
+  step   71680  train20    16.72  eval   281.21 +- 180.9  len  308.4  surv  45%
+  step   81920  train20    85.44  eval   255.10 +- 168.5  len  283.1  surv  25%
+  step   92160  train20    41.17  eval   158.75 +- 159.1  len  180.9  surv  15%
+  step  102400  train20    26.02  eval   280.72 +- 168.0  len  314.6  surv  35%
+  step  112640  train20    79.79  eval   323.78 +- 163.4  len  356.6  surv  50%
+  step  122880  train20    32.92  eval   373.02 +- 163.3  len  399.2  surv  65%
+  step  133120  train20    71.02  eval   355.68 +- 182.0  len  376.2  surv  60%
+  step  143360  train20    40.13  eval   345.52 +- 187.3  len  359.9  surv  55%
+  step  149504  train20    45.93  eval   350.70 +- 164.1  len  375.2  surv  50%
+  FINAL (50 eps): 391.07 +- 131.57  median 466.76  len 418.9  survive 64%
+  17.5 min
+  wrote results\ppo_sxy_prevact_nr0.35_seed0.json
