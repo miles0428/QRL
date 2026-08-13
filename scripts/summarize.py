@@ -35,9 +35,14 @@ import pandas as pd
 
 def load_tag(tag: str, results_dir: str = "results", config: str = "qdqn") -> list[dict]:
     pattern = os.path.join(results_dir, f"{config}_{tag}_*.csv" if tag else f"{config}_*.csv")
+    # The glob already handles an empty tag (the untagged runs, results/{config}_{seed}.csv)
+    # but the regex did not: it interpolated to "{config}__(\d+)" and matched nothing, so
+    # `summarize.py "" --config qdqn` silently reported 0/0 rather than the untagged sweep.
+    # Anchored at the start so an untagged query cannot pick up tagged runs.
+    prefix = f"{re.escape(config)}_{re.escape(tag)}_" if tag else f"{re.escape(config)}_"
     rows = []
     for path in sorted(glob.glob(pattern)):
-        m = re.search(rf"{re.escape(config)}_{re.escape(tag)}_(\d+)\.csv$", os.path.basename(path))
+        m = re.match(rf"{prefix}(\d+)\.csv$", os.path.basename(path))
         if not m:
             continue
         df = pd.read_csv(path)
