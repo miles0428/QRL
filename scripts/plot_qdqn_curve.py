@@ -89,6 +89,15 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", default="figures/qdqn_learning_curve.png")
     p.add_argument("--train-every", type=int, default=10)
+    # Default is the plain curve, for presenting. The reference lines and the
+    # gradient-step axis are analysis aids: useful when judging the result,
+    # clutter when showing it.
+    p.add_argument("--refs", action=argparse.BooleanOptionalAction, default=False,
+                   help="draw greedy / classical-MLP reference lines")
+    p.add_argument("--gradient-axis", action=argparse.BooleanOptionalAction,
+                   default=False, help="add the gradient-step axis on top")
+    p.add_argument("--survival", action=argparse.BooleanOptionalAction, default=False,
+                   help="add the survival-rate panel below")
     args = p.parse_args()
 
     # finished runs first; fall back to parsing the logs of runs still going
@@ -102,30 +111,36 @@ def main():
         src = "anim run JSON"
     print(f"QDQN curve source: {src}, {len(qdqn)} run(s)")
 
-    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(10, 7.2), sharex=True,
-                                  gridspec_kw={"height_ratios": [2.1, 1],
-                                               "hspace": 0.12})
+    if args.survival:
+        fig, (ax, ax2) = plt.subplots(2, 1, figsize=(9.5, 6.8), sharex=True,
+                                      gridspec_kw={"height_ratios": [2.1, 1],
+                                                   "hspace": 0.12})
+    else:
+        fig, ax = plt.subplots(figsize=(9.5, 5.4))
+        ax2 = None
 
     # --- reference lines -----------------------------------------------------
     refs = []
-    gb = Path("results/greedy_baseline_nr0.35.json")
+    if not args.refs:
+        refs = None
+    gb = Path("results/greedy_baseline_nr0.35.json") if args.refs else Path("__none__")
     if gb.exists():
         refs.append(("greedy (one-step lookahead)",
                      json.loads(gb.read_text())["summary"]["greedy"]["return_mean"],
                      "#d62728", "-"))
-    for pat, name, col in [
+    for pat, name, col in ([] if not args.refs else [
         ("results/dqn_w6_sxy_prevact_nr0.35_seed*.json",
          "classical MLP width-6 (137 params)", "#2ca02c"),
         ("results/dqn_sxy_prevact_nr0.35_seed*.json",
          "classical MLP width-128 (18,437 params)", "#7f7f7f"),
-    ]:
+    ]):
         fs = sorted(glob.glob(pat))
         if fs:
             v = np.mean([json.loads(Path(f).read_text())["final"]["return_mean"] for f in fs])
             refs.append((name, v, col, "--"))
     # Stagger the labels: the width-6 and width-128 references land within ~10
     # points of each other and their text would otherwise sit on top of itself.
-    for i, (name, v, col, ls) in enumerate(sorted(refs, key=lambda r: -r[1])):
+    for i, (name, v, col, ls) in enumerate(sorted(refs or [], key=lambda r: -r[1])):
         ax.axhline(v, color=col, ls=ls, lw=1.2, alpha=0.85)
         ax.text(0.015 + 0.34 * i, v, f" {name}: {v:.0f}", color=col, fontsize=8,
                 ha="left", va="bottom", transform=ax.get_yaxis_transform())
@@ -141,9 +156,10 @@ def main():
         if ret.shape[0] > 1:
             ax.fill_between(steps, m - ret.std(0, ddof=1), m + ret.std(0, ddof=1),
                             color="#1f77b4", alpha=0.15, lw=0)
-        for sd, st, _rt, sv in qdqn:
-            ax2.plot(st, sv * 100, lw=0.8, alpha=0.4, color="#1f77b4")
-        ax2.plot(steps, surv.mean(0) * 100, lw=2.2, color="#1f77b4")
+        if ax2 is not None:
+            for sd, st, _rt, sv in qdqn:
+                ax2.plot(st, sv * 100, lw=0.8, alpha=0.4, color="#1f77b4")
+            ax2.plot(steps, surv.mean(0) * 100, lw=2.2, color="#1f77b4")
 
     ax.set_ylabel("evaluation return (20 episodes)")
     ax.set_title("QDQN on the sxy game, noise/Rabi = 0.35", fontsize=12)
@@ -151,18 +167,19 @@ def main():
     ax.grid(alpha=0.25, lw=0.5)
     ax.set_ylim(bottom=0)
 
-    ax2.set_ylabel("survival %")
-    ax2.set_xlabel("environment steps")
-    ax2.grid(alpha=0.25, lw=0.5)
-    ax2.set_ylim(-3, 103)
+    if ax2 is not None:
+        ax2.set_ylabel("survival %")
+        ax2.set_xlabel("environment steps")
+        ax2.grid(alpha=0.25, lw=0.5)
+        ax2.set_ylim(-3, 103)
+    else:
+        ax.set_xlabel("environment steps")
 
-    # second axis: what actually updated the model
-    top = ax.secondary_xaxis("top",
-                             functions=(lambda x: x / args.train_every,
-                                        lambda x: x * args.train_every))
-    top.set_xlabel(f"gradient steps  (train_every={args.train_every}: "
-                   f"10x fewer updates than the classical runs at equal env steps)",
-                   fontsize=9)
+    if args.gradient_axis:
+        top = ax.secondary_xaxis("top",
+                                 functions=(lambda x: x / args.train_every,
+                                            lambda x: x * args.train_every))
+        top.set_xlabel(f"gradient steps  (train_every={args.train_every})", fontsize=9)
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
