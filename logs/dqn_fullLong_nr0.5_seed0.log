@@ -1,0 +1,44 @@
+[full seed0] input dim 6, sigma_ou 0.09935 (noise/Rabi 0.5), 400000 env steps
+  step   10000  eps 0.683  train20     0.40  eval    82.48 +- 83.4   len  101.2  surv   0%
+  step   20000  eps 0.367  train20     7.37  eval    62.97 +- 66.0   len   79.9  surv   0%
+  step   30000  eps 0.050  train20    38.91  eval    49.75 +- 60.1   len   66.0  surv   0%
+  step   40000  eps 0.050  train20    35.21  eval    48.41 +- 62.1   len   61.5  surv   0%
+  step   50000  eps 0.050  train20    23.45  eval    66.40 +- 90.2   len   81.8  surv   0%
+  step   60000  eps 0.050  train20    33.98  eval    84.53 +- 91.5   len  103.2  surv   0%
+  step   70000  eps 0.050  train20    41.64  eval    97.59 +- 96.7   len  118.2  surv   0%
+  step   80000  eps 0.050  train20    49.47  eval    98.53 +- 94.6   len  118.0  surv   0%
+  step   90000  eps 0.050  train20    41.02  eval    60.03 +- 69.7   len   78.7  surv   0%
+  step  100000  eps 0.050  train20    58.67  eval   102.66 +- 80.9   len  127.7  surv   0%
+  step  110000  eps 0.050  train20    60.40  eval    57.23 +- 75.4   len   73.3  surv   0%
+  step  120000  eps 0.050  train20    38.78  eval    81.50 +- 71.5   len  106.5  surv   0%
+  step  130000  eps 0.050  train20    54.96  eval    94.12 +- 102.0  len  113.4  surv   0%
+  step  140000  eps 0.050  train20    40.41  eval   100.88 +- 113.4  len  124.3  surv   5%
+  step  150000  eps 0.050  train20    63.83  eval   105.55 +- 100.8  len  123.0  surv   0%
+  step  160000  eps 0.050  train20    42.43  eval   119.22 +- 123.3  len  136.7  surv   0%
+  step  170000  eps 0.050  train20    40.59  eval   104.38 +- 108.8  len  125.8  surv   0%
+  step  180000  eps 0.050  train20    56.31  eval   112.48 +- 107.0  len  132.0  surv   0%
+  step  190000  eps 0.050  train20    40.02  eval   136.46 +- 133.1  len  158.3  surv   5%
+  step  200000  eps 0.050  train20    42.61  eval   106.79 +- 102.8  len  124.0  surv   0%
+  step  210000  eps 0.050  train20    58.30  eval   134.53 +- 132.6  len  152.9  surv   0%
+  step  220000  eps 0.050  train20    54.47  eval    97.13 +- 113.1  len  118.0  surv   0%
+  step  230000  eps 0.050  train20    59.42  eval   103.57 +- 96.1   len  119.5  surv   0%
+  step  240000  eps 0.050  train20    40.98  eval   113.31 +- 120.3  len  129.9  surv   0%
+  step  250000  eps 0.050  train20    55.72  eval   103.07 +- 98.2   len  119.5  surv   0%
+  step  260000  eps 0.050  train20    53.42  eval    84.08 +- 86.4   len  106.0  surv   0%
+  step  270000  eps 0.050  train20    46.51  eval   121.18 +- 128.1  len  144.1  surv   5%
+  step  280000  eps 0.050  train20    69.93  eval    92.23 +- 77.2   len  109.8  surv   0%
+  step  290000  eps 0.050  train20    65.74  eval   108.59 +- 104.5  len  128.2  surv   0%
+  step  300000  eps 0.050  train20    53.97  eval    88.98 +- 108.9  len  116.8  surv   5%
+  step  310000  eps 0.050  train20    50.16  eval    84.06 +- 90.3   len  101.5  surv   0%
+  step  320000  eps 0.050  train20    55.15  eval    70.81 +- 81.0   len   91.0  surv   0%
+  step  330000  eps 0.050  train20    66.90  eval    92.75 +- 97.5   len  114.9  surv   0%
+  step  340000  eps 0.050  train20    64.16  eval   127.16 +- 132.1  len  151.4  surv   5%
+  step  350000  eps 0.050  train20    49.35  eval   104.94 +- 115.8  len  124.7  surv   0%
+  step  360000  eps 0.050  train20    52.77  eval   121.99 +- 118.2  len  141.6  surv   0%
+  step  370000  eps 0.050  train20    52.18  eval   124.30 +- 134.3  len  141.7  surv   5%
+  step  380000  eps 0.050  train20    52.35  eval   128.72 +- 140.0  len  146.1  surv   5%
+  step  390000  eps 0.050  train20    73.81  eval    96.49 +- 100.4  len  117.4  surv   0%
+  step  400000  eps 0.050  train20    39.68  eval    71.91 +- 83.4   len   93.0  surv   0%
+  FINAL (50 greedy eps): 137.14 +- 130.87  median 96.80  len 158.7  survive 4%
+  26.4 min
+  wrote results\dqn_fullLong_nr0.5_seed0.json

@@ -248,7 +248,14 @@ def train(args):
             tgt.load_state_dict(net.state_dict())
 
         if step % args.eval_every == 0:
-            ev = evaluate(net, eval_feat, sigma, n_episodes=args.eval_episodes)
+            # Checkpoint selection runs on its own seed band (2000..), disjoint
+            # from the 1000.. band used to report. Selecting the best checkpoint
+            # on the same seeds you then report inflates the result, and the
+            # inflation grows with the number of evaluations: measured +10.7 at
+            # 15 evals and +21.8 at 40, which is large enough to invent an
+            # improvement that is not there.
+            ev = evaluate(net, eval_feat, sigma, n_episodes=args.eval_episodes,
+                          seed0=args.select_seed0)
             recent = float(np.mean(train_rets[-20:])) if train_rets else float("nan")
             curve.append({"step": step, "eps": eps, "train_recent20": recent, **{
                 k: v for k, v in ev.items() if k != "returns"}})
@@ -310,6 +317,9 @@ def main():
     p.add_argument("--eval-every", type=int, default=10_000)
     p.add_argument("--eval-episodes", type=int, default=20)
     p.add_argument("--final-episodes", type=int, default=50)
+    p.add_argument("--select-seed0", type=int, default=2000,
+                   help="seed band for checkpoint selection; must not overlap the "
+                        "reporting band (1000..1000+final_episodes)")
     p.add_argument("--out", default=None)
     args = p.parse_args()
     train(args)

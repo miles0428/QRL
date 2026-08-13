@@ -32,7 +32,11 @@ def greedy_returns(nr: float, policy: str = "greedy"):
 
 
 def masked_returns(nr: float, policy: str):
-    d = json.loads(Path(f"results/greedy_masked_nr{nr}.json").read_text())
+    """None when no masked baseline was run at this noise level."""
+    p = Path(f"results/greedy_masked_nr{nr}.json")
+    if not p.exists():
+        return None
+    d = json.loads(p.read_text())
     eps = d["per_episode"][policy]
     return np.array([e["return"] for e in sorted(eps, key=lambda e: e["seed"])])
 
@@ -92,7 +96,8 @@ def main():
         m, seeds = dqn_returns(mode, nr)
         if not len(m):
             continue
-        report(f"DQN {mode} (mean over seeds)  vs  masked greedy_pf", m.mean(0), pf, "DQN", "pf")
+        if pf is not None:
+            report(f"DQN {mode} (mean over seeds)  vs  masked greedy_pf", m.mean(0), pf, "DQN", "pf")
         report(f"DQN {mode} (mean over seeds)  vs  always IDLE", m.mean(0), idle, "DQN", "idle")
         print()
 
