@@ -304,6 +304,87 @@ def fig_cost(sets):
     plt.close(fig)
 
 
+def fig_progress(sets):
+    """Training reward and training loss, side by side, for every arm.
+
+    A WARNING LIVES ON THIS FIGURE. The two panels are not the same kind of
+    quantity. Reward is directly comparable across arms. Loss is NOT: DQN's is a
+    TD error (an error -- lower is better), while the policy-gradient and A2C
+    numbers are SURROGATE objectives, -(log pi * advantage) plus a value term.
+    With advantages normalized per batch that surrogate hovers near zero by
+    construction and its magnitude carries almost no information about policy
+    quality; it is plotted because it is what "training loss" means for these
+    algorithms, not because low is good. The value loss in figure 12 is the
+    A2C-side number that does behave like an error.
+    """
+    keys = [k for k in ("qpg", "qa2c", "q2c", "a2q", "mlp_a2c", "mlp_pg")
+            if k in sets and sets[k].get("reward_curve")]
+    if not keys:
+        return
+    fig, (ax_r, ax_l) = plt.subplots(1, 2, figsize=(13, 5.2))
+    for ax in (ax_r, ax_l):
+        _style(ax)
+        ax.set_xlabel("episode")
+
+    for key in keys:
+        _band(ax_r, sets[key], "reward_curve", sets[key]["label"], key)
+        _band(ax_l, sets[key], "loss_curve", sets[key]["label"], key)
+
+    ax_r.axhline(475, color=SOLVE, linewidth=1.2, linestyle="--", zorder=2)
+    ax_r.annotate("solve threshold 475", xy=(0.02, 475),
+                  xycoords=("axes fraction", "data"), xytext=(0, 5),
+                  textcoords="offset points", color=SOLVE, fontsize=8)
+    ax_r.set_ylabel("training reward (100-episode average)")
+    ax_r.set_title("Reward progress — comparable across arms",
+                   color=INK, fontsize=11, loc="left")
+    ax_l.set_ylabel("training loss (surrogate objective)")
+    ax_l.set_title("Loss progress — NOT comparable across algorithms",
+                   color=INK, fontsize=11, loc="left")
+    ax_l.annotate("policy-gradient loss is a surrogate, not an error:\n"
+                  "with per-batch normalized advantages it sits near 0\n"
+                  "by construction. See figure 12 for the value loss.",
+                  xy=(0.03, 0.06), xycoords="axes fraction",
+                  fontsize=8, color=SOLVE, va="bottom")
+    for ax in (ax_r, ax_l):
+        ax.legend(frameon=False, fontsize=8, loc="best")
+    fig.suptitle("Training progress: reward rises, but the loss curve is not the story",
+                 color=INK, fontsize=12, x=0.09, ha="left")
+    fig.savefig(f"{OUTDIR}/14_progress.png", dpi=150, bbox_inches="tight")
+    fig.savefig(f"{OUTDIR}/14_progress.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
+def fig_entropy(sets):
+    """Policy entropy -- the comparable 'progress' signal the loss curve is not.
+
+    Both PG and A2C anneal their own exploration through the trainable inverse
+    temperature, so entropy falling from ln(2)=0.693 toward 0 is the honest
+    picture of a policy sharpening. Unlike the loss it means the same thing in
+    every arm.
+    """
+    keys = [k for k in ("qpg", "qa2c", "q2c", "a2q", "mlp_a2c", "mlp_pg")
+            if k in sets and sets[k].get("entropy_curve")]
+    if not keys:
+        return
+    fig, ax = plt.subplots(figsize=(9, 5))
+    _style(ax)
+    for key in keys:
+        _band(ax, sets[key], "entropy_curve", sets[key]["label"], key)
+    ax.axhline(np.log(2), color=MUTED, linewidth=1.2, linestyle=":", zorder=2)
+    ax.annotate("ln 2 = 0.693 — uniform policy over two actions",
+                xy=(0.02, np.log(2)), xycoords=("axes fraction", "data"),
+                xytext=(0, -12), textcoords="offset points",
+                color=MUTED, fontsize=8)
+    ax.set_xlabel("episode")
+    ax.set_ylabel("policy entropy (nats)")
+    ax.set_title("Exploration anneals itself — no epsilon schedule anywhere",
+                 color=INK, fontsize=12, loc="left")
+    ax.legend(frameon=False, fontsize=8, loc="best")
+    fig.savefig(f"{OUTDIR}/15_entropy.png", dpi=150, bbox_inches="tight")
+    fig.savefig(f"{OUTDIR}/15_entropy.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 def print_table(sets):
     """The table view the palette's contrast WARN obliges us to ship."""
     print(f"\n{'config':>10} {'actor':>10} {'critic':>10} {'seeds':>6} "
@@ -325,5 +406,7 @@ if __name__ == "__main__":
     fig_algorithms(sets)
     fig_critic(sets)
     fig_cost(sets)
+    fig_progress(sets)
+    fig_entropy(sets)
     print_table(sets)
-    print(f"\nwrote figures to {OUTDIR}/10..13_*.png and .pdf")
+    print(f"\nwrote figures to {OUTDIR}/10..15_*.png and .pdf")
