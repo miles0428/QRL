@@ -21,7 +21,7 @@ pids=()
 for obs in full masked masked_hist; do
   for seed in 0 1 2; do
     log="logs/dqn_${obs}_nr${NR}_seed${seed}.log"
-    "$PY" scripts/train_dqn.py --obs "$obs" --seed "$seed" \
+    "$PY" -u scripts/train_dqn.py --obs "$obs" --seed "$seed" \
         --noise-rabi "$NR" --steps "$STEPS" > "$log" 2>&1 &
     pids+=($!)
     echo "launched $obs seed$seed -> $log"
