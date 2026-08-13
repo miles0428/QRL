@@ -42,3 +42,5 @@
   step  390000  eps 0.050  train20   193.09  eval   309.70 +- 192.9  len  327.4  surv  50%
   step  400000  eps 0.050  train20   220.86  eval   308.89 +- 198.2  len  326.6  surv  55%
   step  410000  eps 0.050  train20   214.13  eval   329.83 +- 194.6  len  349.2  surv  60%
+  step  420000  eps 0.050  train20   220.12  eval   355.98 +- 175.2  len  378.4  surv  60%
+  step  430000  eps 0.050  train20   240.52  eval   311.18 +- 194.2  len  330.4  surv  55%

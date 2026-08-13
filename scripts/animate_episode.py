@@ -322,6 +322,8 @@ def main():
     p.add_argument("--ckpt", default=None)
     p.add_argument("--noise-rabi", type=float, default=0.35)
     p.add_argument("--seeds", default="1000-1029")
+    p.add_argument("--seed", type=int, default=None,
+                   help="animate exactly this evaluation seed, skipping the search")
     p.add_argument("--stride", type=int, default=2)
     p.add_argument("--fps", type=int, default=25)
     p.add_argument("--dpi", type=int, default=130)
@@ -366,8 +368,15 @@ def main():
     else:
         label = "greedy (one-step lookahead)"
 
-    print(f"searching {lo}-{hi} for a successful episode at noise/Rabi {args.noise_rabi}:")
-    seed, ep = find_successful(args.policy, sigma, feat, net, seeds, algo, want_obs)
+    if args.seed is not None:
+        seed = args.seed
+        ep = rollout(args.policy, sigma, seed, feat, net, algo, want_obs)
+        print(f"seed {seed}: return {ep['ret']:.2f}  len {len(ep['a'])}  "
+              f"{'SURVIVED' if ep['survived'] else 'died'}")
+    else:
+        print(f"searching {lo}-{hi} for a successful episode at "
+              f"noise/Rabi {args.noise_rabi}:")
+        seed, ep = find_successful(args.policy, sigma, feat, net, seeds, algo, want_obs)
     if not ep["survived"]:
         print(f"  !! none of these seeds survived; animating the best "
               f"(seed {seed}, return {ep['ret']:.1f}) and labelling it as such")
