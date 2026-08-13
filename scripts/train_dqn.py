@@ -47,6 +47,37 @@ from quantum_spin_cartpole import QuantumSpinCartPoleEnv  # noqa: E402
 
 N_ACTIONS = 5
 
+# Which components of the 6D observation [sx, sy, sz, dsx, dsy, dsz] each family
+# of modes keeps. Suffixes _prevact / _hist are handled separately.
+#
+#   full    everything.
+#   masked  sz and dsz only. Reward information is intact -- fidelity is a
+#           function of sz -- but the azimuth is gone, so the agent cannot tell
+#           +X from +Y.
+#   sx      sx and dsx only. The harder mirror image: the agent can no longer
+#           see sz at all, so it cannot see its own reward or how close it is to
+#           the sz<0 termination. Still solvable in principle, because an X drive
+#           leaves sx fixed while a Y drive moves sx in proportion to sz -- so a
+#           Y probe reads out sz, sign included.
+#   sxy     sx, sy and their deltas. Information-theoretically this hides
+#           nothing while the episode is live: reset samples the upper
+#           hemisphere and sz<0 terminates, so sz = +sqrt(1-sx^2-sy^2) exactly
+#           (verified to 4e-14). But sufficiency is not learnability. The true
+#           update of (sx, sy) depends on sz, so on this 2D projection the
+#           dynamics are NOT linear -- a linear fitted model, which is exact on
+#           the full Bloch vector, is misspecified here. This mode separates
+#           "the information is present" from "this model class can use it".
+OBS_INDICES = {
+    "full": [0, 1, 2, 3, 4, 5],
+    "masked": [2, 5],
+    "sx": [0, 3],
+    "sxy": [0, 1, 3, 4],
+}
+
+# Derived so that adding a family above automatically exposes it on the CLI --
+# forgetting to update a hand-written choices list silently kills every run.
+OBS_MODES = [f"{fam}{suf}" for fam in OBS_INDICES for suf in ("", "_prevact", "_hist")]
+
 
 # ----------------------------------------------------------------------------
 # Observation handling
@@ -56,17 +87,23 @@ class Featurizer:
 
     def __init__(self, mode: str, hist: int = 8):
         self.mode = mode
-        self.hist = hist if mode == "masked_hist" else 1
-        base = 6 if mode == "full" else 2
+        self.hist = hist if mode.endswith("_hist") else 1
+        # _prevact: keep the Markov observation and append only the one-hot of
+        # the action that produced it. The spin state is already Markov, so
+        # stacking old states adds nothing; the single missing piece is which
+        # action caused the observed delta, since delta = own action + noise.
+        # Knowing the action lets the net subtract the known part and read off
+        # the noise. 11 dims instead of 88, and no start-of-episode padding.
+        self.with_action = mode.endswith("_hist") or mode.endswith("_prevact")
+        self.family = mode.split("_")[0]
+        self.idx = OBS_INDICES[self.family]
+        base = len(self.idx)
         self.base = base
-        self.dim = base * self.hist + (N_ACTIONS * self.hist if self.hist > 1 else 0)
+        self.dim = (base + (N_ACTIONS if self.with_action else 0)) * self.hist
         self._buf: deque = deque(maxlen=self.hist)
 
     def _core(self, obs: np.ndarray) -> np.ndarray:
-        if self.mode == "full":
-            return np.asarray(obs, dtype=np.float32)
-        # masked: drop sx, sy, dsx, dsy -- keep only sz and dsz
-        return np.asarray([obs[2], obs[5]], dtype=np.float32)
+        return np.asarray(obs, dtype=np.float32)[self.idx]
 
     def reset(self, obs: np.ndarray) -> np.ndarray:
         self._buf.clear()
@@ -82,8 +119,10 @@ class Featurizer:
         return self._flat()
 
     def _flat(self) -> np.ndarray:
-        if self.hist == 1:
+        if not self.with_action:
             return self._buf[-1][0]
+        if self.hist == 1:
+            return np.concatenate(self._buf[-1])
         return np.concatenate([np.concatenate(x) for x in self._buf])
 
 
@@ -297,7 +336,7 @@ def train(args):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--obs", choices=["full", "masked", "masked_hist"], default="full")
+    p.add_argument("--obs", choices=OBS_MODES, default="full")
     p.add_argument("--hist", type=int, default=8)
     p.add_argument("--noise-rabi", type=float, default=0.5)
     p.add_argument("--sigma-ou", type=float, default=None)

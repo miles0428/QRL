@@ -1,0 +1,19 @@
+[PPO full seed2] dim 6, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 steps, 73 updates
+  step   10240  train20     5.44  eval   225.19 +- 176.8  len  263.1  surv  35%
+  step   20480  train20    12.71  eval   246.79 +- 161.8  len  296.8  surv  30%
+  step   30720  train20     8.22  eval   327.91 +- 177.4  len  355.9  surv  55%
+  step   40960  train20    17.34  eval   325.54 +- 175.9  len  356.1  surv  55%
+  step   51200  train20    14.44  eval   332.74 +- 172.2  len  366.9  surv  55%
+  step   61440  train20    12.61  eval   293.42 +- 162.4  len  337.2  surv  40%
+  step   71680  train20    14.98  eval   321.34 +- 161.1  len  368.9  surv  50%
+  step   81920  train20    28.14  eval   356.91 +- 149.7  len  395.4  surv  60%
+  step   92160  train20    11.18  eval   370.96 +- 136.4  len  414.9  surv  65%
+  step  102400  train20    27.29  eval   355.48 +- 137.4  len  399.2  surv  55%
+  step  112640  train20    37.78  eval   369.57 +- 150.8  len  403.9  surv  65%
+  step  122880  train20    25.34  eval   366.08 +- 151.0  len  404.2  surv  65%
+  step  133120  train20    47.67  eval   361.12 +- 151.0  len  395.8  surv  60%
+  step  143360  train20    20.27  eval   348.41 +- 165.8  len  381.1  surv  60%
+  step  149504  train20    66.21  eval   330.78 +- 171.4  len  374.6  surv  60%
+  FINAL (50 eps): 373.37 +- 129.95  median 445.32  len 418.0  survive 66%
+  13.9 min
+  wrote results\ppo_full_nr0.35_seed2.json

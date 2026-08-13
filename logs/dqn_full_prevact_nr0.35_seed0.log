@@ -1,0 +1,19 @@
+[full_prevact seed0] input dim 11, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 env steps
+  step   10000  eps 0.683  train20    -0.53  eval   238.19 +- 146.7  len  307.8  surv  30%
+  step   20000  eps 0.367  train20    10.88  eval   227.05 +- 160.7  len  284.5  surv  35%
+  step   30000  eps 0.050  train20    74.93  eval   308.84 +- 164.6  len  359.4  surv  55%
+  step   40000  eps 0.050  train20   107.64  eval   293.58 +- 164.1  len  336.4  surv  40%
+  step   50000  eps 0.050  train20   131.49  eval   258.56 +- 146.2  len  309.2  surv  30%
+  step   60000  eps 0.050  train20    98.98  eval   291.53 +- 158.2  len  367.6  surv  65%
+  step   70000  eps 0.050  train20    76.07  eval   331.56 +- 181.8  len  365.2  surv  60%
+  step   80000  eps 0.050  train20    90.91  eval    63.54 +- 86.4   len   92.7  surv   0%
+  step   90000  eps 0.050  train20    99.83  eval   112.58 +- 88.2   len  157.9  surv   0%
+  step  100000  eps 0.050  train20   100.76  eval   312.25 +- 166.8  len  352.4  surv  50%
+  step  110000  eps 0.050  train20    94.57  eval   251.53 +- 166.2  len  310.4  surv  45%
+  step  120000  eps 0.050  train20   133.92  eval   129.79 +- 121.0  len  168.5  surv   5%
+  step  130000  eps 0.050  train20   164.55  eval   246.26 +- 174.4  len  283.6  surv  35%
+  step  140000  eps 0.050  train20   140.25  eval   279.14 +- 160.8  len  334.6  surv  45%
+  step  150000  eps 0.050  train20    97.26  eval    53.98 +- 73.7   len   74.0  surv   0%
+  FINAL (50 greedy eps): 388.52 +- 128.54  median 454.22  len 428.5  survive 74%
+  15.6 min
+  wrote results\dqn_full_prevact_nr0.35_seed0.json

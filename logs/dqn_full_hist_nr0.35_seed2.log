@@ -1,0 +1,19 @@
+[full_hist seed2] input dim 88, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 env steps
+  step   10000  eps 0.683  train20     2.13  eval   145.89 +- 114.6  len  178.8  surv   5%
+  step   20000  eps 0.367  train20    10.50  eval   202.06 +- 164.2  len  247.1  surv  30%
+  step   30000  eps 0.050  train20    44.53  eval    96.72 +- 89.6   len  128.3  surv   0%
+  step   40000  eps 0.050  train20    29.71  eval   145.17 +- 143.6  len  179.2  surv  10%
+  step   50000  eps 0.050  train20    42.86  eval    89.91 +- 101.9  len  119.6  surv   5%
+  step   60000  eps 0.050  train20    70.16  eval   279.40 +- 171.3  len  335.6  surv  50%
+  step   70000  eps 0.050  train20    60.52  eval    53.82 +- 57.9   len   79.0  surv   0%
+  step   80000  eps 0.050  train20    31.69  eval    77.75 +- 87.9   len  107.0  surv   0%
+  step   90000  eps 0.050  train20    59.94  eval   228.75 +- 165.2  len  279.0  surv  35%
+  step  100000  eps 0.050  train20   103.93  eval   155.36 +- 132.6  len  201.9  surv   5%
+  step  110000  eps 0.050  train20    93.92  eval    29.31 +- 29.9   len   45.6  surv   0%
+  step  120000  eps 0.050  train20   104.45  eval   132.76 +- 138.6  len  160.3  surv   5%
+  step  130000  eps 0.050  train20    90.64  eval   332.54 +- 189.3  len  360.9  surv  60%
+  step  140000  eps 0.050  train20    97.80  eval   243.02 +- 157.3  len  290.4  surv  30%
+  step  150000  eps 0.050  train20    62.95  eval    22.30 +- 22.6   len   36.9  surv   0%
+  FINAL (50 greedy eps): 326.52 +- 176.46  median 444.38  len 356.2  survive 50%
+  11.2 min
+  wrote results\dqn_full_hist_nr0.35_seed2.json
