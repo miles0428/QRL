@@ -166,8 +166,10 @@ MODEL_ALGO = {
     "mlp": "dqn",
     "vqc_policy": "pg",
     "mlp_policy": "pg",
-    "vqc_a2c": "a2c",
-    "mlp_a2c": "a2c",
+    "vqc_a2c": "a2c",  # Q2Q: quantum actor, quantum critic
+    "mlp_a2c": "a2c",  # A2C: classical actor, classical critic
+    "q2c": "a2c",      # Q2C: quantum actor, classical critic
+    "a2q": "a2c",      # A2Q: classical actor, quantum critic
 }
 
 

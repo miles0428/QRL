@@ -1,0 +1,76 @@
+# Q2C: QUANTUM actor + CLASSICAL critic, A2C + GAE.
+#
+# One cell of the actor/critic grid in Koelle et al. 2024 (arXiv:2401.07043),
+# whose naming this keeps -- first letter actor, second critic. The other three
+# cells are configs/vqc_a2c (Q2Q), configs/a2q.yaml (A2Q) and
+# configs/mlp_a2c.yaml (A2C).
+#
+# WHY THIS CELL IS THE ONE TO WATCH. Two independent reasons, one from the paper
+# and one from our own runs:
+#
+#   - The paper's hybrid HQ2C was one of two variants that "started to learn the
+#     task immediately".
+#   - In our qpg runs the quantum ACTOR is the proven part (5/5 solved). The
+#     critic is the piece that needed a w_init fix to work at all, gets only
+#     ~60 gradient steps to learn V, and reached explained_variance ~0.6. A
+#     classical critic learns V far faster AND removes the second circuit
+#     evaluation per gradient step -- which is the entire wall-clock premium A2C
+#     pays over plain REINFORCE. If the hypothesis holds this should land near
+#     qpg's wall-clock with A2C's variance reduction.
+#
+# IMPORTANT DIFFERENCE FROM THE PAPER. Koelle et al. report that all three of
+# their PURE quantum variants (A2Q, Q2C, Q2Q) failed to learn CartPole at all,
+# diagnosed as vanishing gradients (mean gradient -5.6e-5), and recover
+# performance only by adding a classical post-processing layer. Their ansatz has
+# 2 variational layers, no data re-uploading (their discussion names it as the
+# likely fix), and reads a single-qubit measurement probability. Ours has 5
+# layers WITH re-uploading, trainable input scaling lam, trainable output
+# scaling, and two-qubit observables -- and our pure-quantum qpg/qa2c runs solve
+# the environment. So this grid is their experiment run on an ansatz that has
+# the feature they identified as missing; it is not a reproduction.
+name: q2c
+
+model:
+  type: q2c
+  # Actor: identical to configs/qa2c.yaml's, so the only difference between
+  # qa2c and q2c is which critic sits behind it.
+  n_qubits: 4
+  n_layers: 5
+  reuploading: true
+  observables: ["ZZII", "IIZZ"]
+  beta_init: 1.0
+  trainable_beta: true
+
+critic:
+  hidden: 7   # 5*7 + 1 = 43 params, vs VQCValue's 45 -- see src/models/mlp.py
+
+trainer:
+  episodes: 5000
+  gamma: 0.99
+  n_envs: 8
+  episodes_per_update: 16
+  gae_lambda: 0.95
+  normalize_advantages: true
+  value_coef: 0.5
+  value_loss_fn: huber
+  entropy_coef: 0.0
+  max_grad_norm: 1.0
+  max_steps_per_episode: 500
+
+optim:
+  lr_variational: 0.01     # actor circuit weights
+  lr_input_scaling: 0.01   # actor lam
+  lr_beta: 0.1             # actor head
+  lr_critic: 0.05          # classical critic, single group
+
+gradient:
+  method: adjoint
+  backend: torch_sv
+
+eval:
+  solve_threshold: 475.0
+  solve_window: 100
+  env_id: CartPole-v1
+  eval_every: 50
+  eval_episodes: 5
+  final_eval_episodes: 100

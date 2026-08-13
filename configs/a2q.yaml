@@ -1,0 +1,63 @@
+# A2Q: CLASSICAL actor + QUANTUM critic, A2C + GAE.
+#
+# One cell of the actor/critic grid in Koelle et al. 2024 (arXiv:2401.07043) --
+# first letter actor, second critic. See configs/q2c.yaml for the full framing
+# and for how our ansatz differs from theirs.
+#
+# This is the cell that isolates the CRITIC. Everything the quantum model
+# contributes here goes into estimating V(s); the policy being improved is a
+# plain MLP. Read against configs/mlp_a2c.yaml it answers one question directly:
+# does a quantum value function help, hurt, or do nothing, holding the actor
+# fixed?
+#
+# Our prior is that this is the weaker of the two mixed cells, and the reasoning
+# is worth stating so the result can contradict it. A critic has ~60 gradient
+# steps to learn a function reaching V* ~ 99, and in the qa2c runs the quantum
+# critic reached explained_variance ~0.6 -- useful but not excellent. A classical
+# critic on the same budget is close to exact. So the quantum circuit is being
+# asked to do the job it is worst placed to do, on the tighter deadline.
+name: a2q
+
+model:
+  type: a2q
+  hidden: 6   # classical actor: 7*6 + 2 = 44 params, vs VQCPolicy's 45
+  # Circuit settings below apply to the CRITIC only, and are identical to
+  # configs/qa2c.yaml's so the two are comparable.
+  n_qubits: 4
+  n_layers: 5
+  reuploading: true
+  output_rescaling: true
+
+critic:
+  observable: "ZZZZ"
+
+optim:
+  lr: 0.01                          # classical actor
+  lr_critic_variational: 0.01       # critic circuit weights
+  lr_critic_input_scaling: 0.01     # critic lam
+  lr_critic_output_scaling: 0.1     # critic w -- must reach ~V* = 99
+
+trainer:
+  episodes: 5000
+  gamma: 0.99
+  n_envs: 8
+  episodes_per_update: 16
+  gae_lambda: 0.95
+  normalize_advantages: true
+  value_coef: 0.5
+  value_loss_fn: huber
+  entropy_coef: 0.0
+  max_grad_norm: 1.0
+  max_steps_per_episode: 500
+
+gradient:
+  method: adjoint
+  backend: torch_sv
+
+eval:
+  solve_threshold: 475.0
+  solve_window: 100
+  env_id: CartPole-v1
+  eval_every: 50
+  eval_episodes: 5
+  final_eval_episodes: 100

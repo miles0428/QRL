@@ -31,6 +31,25 @@ from src.config import algo_for, load_config
 from src.seeds import set_seed
 from scripts.train import EVAL_SEED_BASE, print_resolved_versions
 
+# model_type -> (actor kind, critic kind). The four cells of the actor/critic
+# grid in Koelle et al. 2024 (arXiv:2401.07043), whose naming this keeps: the
+# first letter is the ACTOR, the second the CRITIC.
+#
+#   mlp_a2c  = A2C  classical actor, classical critic
+#   q2c      = Q2C  quantum   actor, classical critic
+#   a2q      = A2Q  classical actor, quantum   critic
+#   vqc_a2c  = Q2Q  quantum   actor, quantum   critic
+#
+# `vqc_a2c` and `mlp_a2c` keep their original names rather than being renamed to
+# q2q/a2c: runs already on disk are keyed by config name, and renaming would
+# orphan them.
+A2C_KINDS = {
+    "vqc_a2c": ("vqc", "vqc"),
+    "mlp_a2c": ("mlp", "mlp"),
+    "q2c": ("vqc", "mlp"),
+    "a2q": ("mlp", "vqc"),
+}
+
 
 def build_models_and_optimizer(config: dict, seed: int):
     """Actor, critic, and ONE optimizer carrying both.
@@ -38,9 +57,41 @@ def build_models_and_optimizer(config: dict, seed: int):
     The loss is combined (policy + value_coef * value), so a single backward and
     a single step cover both networks -- but they still need different learning
     rates per parameter group, for the same reasons they do on the DQN side.
+
+    The actor and the critic are chosen INDEPENDENTLY, via A2C_KINDS. That is
+    the whole 2x2 grid Koelle et al. 2024 (arXiv:2401.07043) study, and their
+    naming is kept: the first letter is the actor, the second the critic.
     """
-    if config["model_type"] == "vqc_a2c":
+    actor_kind, critic_kind = A2C_KINDS[config["model_type"]]
+
+    if actor_kind == "vqc":
         from src.models.vqc_policy import VQCPolicy
+
+        actor = VQCPolicy(
+            n_qubits=config["n_qubits"],
+            n_layers=config["n_layers"],
+            reuploading=config["reuploading"],
+            observables=config["observables"],
+            backend=config["backend"],
+            gradient_method=config["gradient_method"],
+            beta_init=config["beta_init"],
+            trainable_beta=config["trainable_beta"],
+            per_layer_encoding=config["per_layer_encoding"],
+            seed=seed,
+        )
+        groups = [
+            {"params": [actor.lam], "lr": config["lr_lam"]},
+            {"params": list(actor.vqc.parameters()), "lr": config["lr_vqc"]},
+        ]
+        if config["trainable_beta"]:
+            groups.append({"params": [actor.beta_raw], "lr": config["lr_beta"]})
+    else:
+        from src.models.mlp import MLPPolicy
+
+        actor = MLPPolicy(hidden=config["hidden"])
+        groups = [{"params": list(actor.parameters()), "lr": config["lr"]}]
+
+    if critic_kind == "vqc":
         from src.models.vqc_value import VQCValue, value_scale
 
         # The critic's output weight starts at the return scale rather than at 1.
@@ -56,21 +107,9 @@ def build_models_and_optimizer(config: dict, seed: int):
                   f"(auto: (1-gamma^T)/(1-gamma) at gamma={config['gamma']}, "
                   f"T={config['max_steps_per_episode']})")
 
-        actor = VQCPolicy(
-            n_qubits=config["n_qubits"],
-            n_layers=config["n_layers"],
-            reuploading=config["reuploading"],
-            observables=config["observables"],
-            backend=config["backend"],
-            gradient_method=config["gradient_method"],
-            beta_init=config["beta_init"],
-            trainable_beta=config["trainable_beta"],
-            per_layer_encoding=config["per_layer_encoding"],
-            seed=seed,
-        )
-        # Separate circuit, separate weights -- the actor and critic share the
-        # ansatz but not a single parameter. seed+1 so the critic does not start
-        # life as an identical copy of the actor's circuit.
+        # Separate circuit, separate weights -- when both are quantum they share
+        # the ansatz but not a single parameter. seed+1 so the critic does not
+        # start life as an identical copy of the actor's circuit.
         critic = VQCValue(
             n_qubits=config["n_qubits"],
             n_layers=config["n_layers"],
@@ -83,34 +122,37 @@ def build_models_and_optimizer(config: dict, seed: int):
             seed=seed + 1,
             w_init=w_init,
         )
-        groups = [
-            {"params": [actor.lam], "lr": config["lr_lam"]},
-            {"params": list(actor.vqc.parameters()), "lr": config["lr_vqc"]},
+        groups += [
             {"params": [critic.lam], "lr": config["lr_critic_lam"]},
             {"params": list(critic.vqc.parameters()), "lr": config["lr_critic_vqc"]},
-            # The critic's output weight must climb from 1 to ~V* = 99, the same
-            # job w has in VQCQFunction, so it gets the same large learning rate.
+            # The critic's output weight does the same job w has in VQCQFunction,
+            # so it gets the same much larger learning rate.
             {"params": [critic.w], "lr": config["lr_critic_w"]},
         ]
-        if config["trainable_beta"]:
-            groups.append({"params": [actor.beta_raw], "lr": config["lr_beta"]})
-        optimizer = torch.optim.Adam(groups, amsgrad=config["amsgrad"])
-    elif config["model_type"] == "mlp_a2c":
-        from src.models.mlp import MLPPolicy, MLPValue
-
-        actor = MLPPolicy(hidden=config["hidden"])
-        critic = MLPValue(hidden=config["critic_hidden"])
-        optimizer = torch.optim.Adam(
-            [{"params": actor.parameters(), "lr": config["lr"]},
-             {"params": critic.parameters(), "lr": config["lr_critic"]}],
-            amsgrad=config["amsgrad"],
-        )
     else:
-        raise ValueError(
-            f"{config['model_type']!r} is not an A2C model type; "
-            f"use scripts/train.py (DQN) or scripts/train_pg.py (REINFORCE)"
-        )
+        from src.models.mlp import MLPValue
+        from src.models.vqc_value import value_scale
 
+        # Same scale initialization the quantum critic gets, for the same reason
+        # and from the same derivation -- otherwise the classical critic starts
+        # near 0, cannot reach V* in ~60 gradient steps, and the grid would be
+        # comparing initializations rather than function approximators.
+        v_init = config["critic_w_init"]
+        if v_init is None:
+            v_init = value_scale(config["gamma"], config["max_steps_per_episode"])
+            print(f"critic value_init: {v_init:.2f} "
+                  f"(auto: (1-gamma^T)/(1-gamma) at gamma={config['gamma']}, "
+                  f"T={config['max_steps_per_episode']})")
+        critic = MLPValue(hidden=config["critic_hidden"], value_init=v_init)
+        # `w` gets the large learning rate its quantum counterpart gets, and the
+        # body gets the ordinary one -- same split, same reasons.
+        body = [p for n, p in critic.named_parameters() if n != "w"]
+        groups += [
+            {"params": body, "lr": config["lr_critic"]},
+            {"params": [critic.w], "lr": config["lr_critic_w"]},
+        ]
+
+    optimizer = torch.optim.Adam(groups, amsgrad=config["amsgrad"])
     return actor, critic, optimizer
 
 
@@ -196,12 +238,15 @@ def main():
         if flag is not None:
             config[key] = flag
 
-    if config["model_type"] == "vqc_a2c":
-        print(
-            f"backend: {config['backend']} | gradient: {config['gradient_method']} | "
-            f"actor observables: {config['observables']} | "
-            f"critic observable: {config['critic_observable']}"
-        )
+    actor_kind, critic_kind = A2C_KINDS[config["model_type"]]
+    print(f"actor: {actor_kind} | critic: {critic_kind}")
+    if "vqc" in (actor_kind, critic_kind):
+        line = f"backend: {config['backend']} | gradient: {config['gradient_method']}"
+        if actor_kind == "vqc":
+            line += f" | actor observables: {config['observables']}"
+        if critic_kind == "vqc":
+            line += f" | critic observable: {config['critic_observable']}"
+        print(line)
     print(
         f"algo: A2C | gae_lambda: {config['gae_lambda']} | value_coef: {config['value_coef']} | "
         f"value_loss: {config['value_loss_fn']} | "
@@ -275,11 +320,17 @@ def main():
     torch.save(critic.state_dict(), critic_path)
     print(f"saved final critic weights to {critic_path}")
 
-    if config["model_type"] == "vqc_a2c":
+    # Backend-neutral copies for whichever side is quantum -- the classical side
+    # has no such notion, so a mixed run saves only the quantum half.
+    portable = {}
+    if actor_kind == "vqc":
+        portable["actor"] = actor.export_weights()
+    if critic_kind == "vqc":
+        portable["critic"] = critic.export_weights()
+    if portable:
         portable_path = results_path.replace(".csv", "_weights.pt")
-        torch.save({"actor": actor.export_weights(), "critic": critic.export_weights()},
-                   portable_path)
-        print(f"saved backend-neutral weights to {portable_path}")
+        torch.save(portable, portable_path)
+        print(f"saved backend-neutral weights ({', '.join(portable)}) to {portable_path}")
 
 
 if __name__ == "__main__":

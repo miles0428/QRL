@@ -72,22 +72,43 @@ class MLPValue(ValueFunction):
     comparison this project makes is parameter-efficiency, so the closer match is
     the honest one, and the width is an implementation detail either way.
 
-    Unlike VQCValue this needs no output-scaling weight: a linear output layer
-    can already produce V ~ 99 by growing its own weights, where the quantum head
-    is hard-bounded to [-1, 1] before `w` is applied.
+    THE HEAD IS VQCValue'S, DELIBERATELY: `w * sigmoid(.)`, a [0,1] core scaled
+    by a trainable magnitude initialized to the return scale.
+
+    A plain linear output would be the obvious choice and is the wrong one here.
+    An A2C run has only ~60 gradient steps, and Adam moves a parameter by roughly
+    its learning rate per step, so the output weights (initialized at ~0.4) get
+    nowhere near the ~14 they would need to span [0, V*] with tanh features. The
+    critic stays effectively constant, and a constant critic has explained
+    variance of exactly 0 -- which turns GAE's baseline back into REINFORCE's
+    batch mean, the same degeneration documented in src/models/vqc_value.py.
+
+    Measured on a 3-gradient-step probe: explained_variance 0.004 for a plain
+    linear head, 0.000 after merely setting its bias to V* (a constant predictor
+    is still a constant predictor), against 0.466 for the quantum critic whose
+    head already had range.
+
+    Giving both critics the same head shape is also what makes the actor/critic
+    grid measure what it claims to. The quantum head NEEDS a scale because
+    expectation values are hard-bounded to [-1,1]; the classical one does not, in
+    principle. But if only one of them starts with usable range, the grid
+    compares initializations rather than function approximators.
     """
 
-    def __init__(self, n_inputs: int = 4, hidden: int = DEFAULT_CRITIC_HIDDEN):
+    def __init__(self, n_inputs: int = 4, hidden: int = DEFAULT_CRITIC_HIDDEN,
+                 value_init: float = 1.0):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_inputs, hidden),
             nn.Tanh(),
             nn.Linear(hidden, 1),
         )
+        self.w = nn.Parameter(torch.full((1,), float(value_init)))
 
     def forward(self, states: torch.Tensor) -> torch.Tensor:
         normalized = normalize_observation(states)
-        return self.net(normalized).reshape(-1)  # [B], see ValueFunction docstring
+        core = torch.sigmoid(self.net(normalized))  # [B, 1] in [0, 1]
+        return (core * self.w).reshape(-1)  # [B], see ValueFunction docstring
 
 
 if __name__ == "__main__":
