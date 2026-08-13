@@ -48,7 +48,14 @@ ACTION_NAMES = ["+X", "-X", "+Y", "-Y", "IDLE"]
 
 
 def circuit_internals(net, s: np.ndarray):
-    """Encoding angles, statevector and Q-values for one observation."""
+    """
+    Encoding angles, statevector, measured observables and Q-values.
+
+    `raw` is the five <O_i> the circuit is actually measured on, one per action,
+    each in [-1, 1]. Those five numbers are the entire quantum output: the
+    Q-values are just w * (raw+1)/2. The 512 amplitudes exist inside the
+    simulation but are never read.
+    """
     with torch.no_grad():
         x = torch.from_numpy(s).unsqueeze(0)
         normalized = normalize_observation(x)
@@ -59,7 +66,7 @@ def circuit_internals(net, s: np.ndarray):
                                 net.vqc._obs, return_state=True)
         out = (raw + 1.0) / 2.0 if net.output_rescaling else raw
         q = net.w * out
-    return scaled[0].numpy(), psi[0].numpy(), q[0].numpy()
+    return (scaled[0].numpy(), psi[0].numpy(), q[0].numpy(), raw[0].numpy())
 
 
 def rollout(net, feat, sigma, seed):
@@ -70,7 +77,7 @@ def rollout(net, feat, sigma, seed):
     ANG, PSI, Q, SZ, ACT, R = [], [], [], [], [], []
     term = trunc = False
     while not (term or trunc):
-        ang, psi, q = circuit_internals(net, s)
+        ang, psi, q, _raw = circuit_internals(net, s)
         a = int(np.argmax(q))
         obs, r, term, trunc, info = env.step(a)
         s = feat.step(obs, a)
