@@ -51,6 +51,7 @@ from greedy_baseline import (  # noqa: E402
     _bloch,
     _fidelity,
     build_action_propagators,
+    sigma_for_noise_rabi,
 )
 from quantum_spin_cartpole import QuantumSpinCartPoleEnv  # noqa: E402
 from quantum_spin_cartpole.constants import ACTION_MAP  # noqa: E402
@@ -299,7 +300,10 @@ def verify_rotation(env):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--episodes", type=int, default=50)
-    p.add_argument("--sigma-ou", type=float, default=None)
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--sigma-ou", type=float, default=None)
+    g.add_argument("--noise-rabi", type=float, default=None,
+                   help="set SIGMA_OU so that (noise std)/Omega_R equals this ratio")
     p.add_argument("--particles", type=int, default=256)
     p.add_argument(
         "--policies",
@@ -312,6 +316,8 @@ def main():
     env_kwargs = {}
     if args.sigma_ou is not None:
         env_kwargs["sigma_ou"] = args.sigma_ou
+    elif args.noise_rabi is not None:
+        env_kwargs["sigma_ou"] = sigma_for_noise_rabi(args.noise_rabi)
 
     probe = QuantumSpinCartPoleEnv(seed=0, **env_kwargs)
     noise_std = probe.sigma_ou / np.sqrt(2.0 * probe.theta_ou)

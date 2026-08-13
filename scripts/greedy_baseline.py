@@ -35,7 +35,17 @@ from pathlib import Path
 import numpy as np
 
 from quantum_spin_cartpole import QuantumSpinCartPoleEnv
-from quantum_spin_cartpole.constants import ACTION_MAP, C_CTRL, R_PENALTY
+from quantum_spin_cartpole.constants import ACTION_MAP, C_CTRL, OMEGA_R, R_PENALTY, THETA_OU
+
+
+def sigma_for_noise_rabi(ratio: float, omega_R: float = OMEGA_R, theta: float = THETA_OU) -> float:
+    """
+    sigma_ou that makes (stationary noise std)/Omega_R equal `ratio`.
+
+    stationary std of the OU process is sigma/sqrt(2*theta), so
+        sigma = ratio * Omega_R * sqrt(2*theta)
+    """
+    return ratio * omega_R * np.sqrt(2.0 * theta)
 
 IDLE = 4
 ACTION_NAMES = ["+X", "-X", "+Y", "-Y", "IDLE"]
@@ -192,7 +202,10 @@ def verify_propagator(env, tol=1e-9):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--episodes", type=int, default=20)
-    p.add_argument("--sigma-ou", type=float, default=None, help="override SIGMA_OU")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--sigma-ou", type=float, default=None, help="override SIGMA_OU directly")
+    g.add_argument("--noise-rabi", type=float, default=None,
+                   help="set SIGMA_OU so that (noise std)/Omega_R equals this ratio")
     p.add_argument("--policies", default="greedy,random,idle")
     p.add_argument("--out", default=None, help="path for the JSON result file")
     p.add_argument("--tag", default="default")
@@ -201,6 +214,8 @@ def main():
     env_kwargs = {}
     if args.sigma_ou is not None:
         env_kwargs["sigma_ou"] = args.sigma_ou
+    elif args.noise_rabi is not None:
+        env_kwargs["sigma_ou"] = sigma_for_noise_rabi(args.noise_rabi)
 
     probe = QuantumSpinCartPoleEnv(seed=0, **env_kwargs)
     noise_std = probe.sigma_ou / np.sqrt(2.0 * probe.theta_ou)
