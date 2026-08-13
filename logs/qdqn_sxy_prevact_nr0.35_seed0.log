@@ -3,3 +3,18 @@
   batch 16, train_every 10, target_every 30, lr w/lam/circuit 0.1/0.001/0.001
   step   10000  eps 0.683  train20    -1.02  eval     0.83 +- 7.7    len    7.7  surv   0%
   step   20000  eps 0.367  train20     4.26  eval    20.94 +- 36.5   len   31.4  surv   0%
+  step   30000  eps 0.050  train20     2.46  eval     8.89 +- 11.5   len   16.4  surv   0%
+  step   40000  eps 0.050  train20    23.67  eval    16.15 +- 30.1   len   24.2  surv   0%
+  step   50000  eps 0.050  train20    45.18  eval    96.28 +- 109.6  len  110.3  surv   5%
+  step   60000  eps 0.050  train20    64.76  eval    80.69 +- 91.6   len   94.1  surv   0%
+  step   70000  eps 0.050  train20    90.16  eval   284.93 +- 192.7  len  310.9  surv  50%
+  step   80000  eps 0.050  train20   111.78  eval   240.26 +- 192.2  len  260.1  surv  35%
+  step   90000  eps 0.050  train20   100.11  eval   235.03 +- 186.0  len  259.1  surv  35%
+  step  100000  eps 0.050  train20   141.83  eval    91.57 +- 126.7  len  104.7  surv   5%
+  step  110000  eps 0.050  train20   114.60  eval   311.62 +- 193.3  len  332.9  surv  55%
+  step  120000  eps 0.050  train20   169.62  eval   299.96 +- 194.5  len  324.2  surv  50%
+  step  130000  eps 0.050  train20   205.76  eval   343.52 +- 179.3  len  365.1  surv  50%
+  step  140000  eps 0.050  train20   156.31  eval   277.92 +- 194.4  len  295.6  surv  45%
+  step  150000  eps 0.050  train20   182.51  eval   306.74 +- 193.2  len  332.6  surv  55%
+  step  160000  eps 0.050  train20   156.53  eval   308.63 +- 188.8  len  333.8  surv  55%
+  step  170000  eps 0.050  train20   207.27  eval   274.13 +- 185.1  len  294.2  surv  40%

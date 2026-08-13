@@ -373,6 +373,18 @@ def train(args):
 
     out = Path(args.out or f"results/dqn_{args.obs}_nr{args.noise_rabi}_seed{args.seed}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
+    if args.save_model:
+        ckpt = out.with_suffix(".pt")
+        torch.save({
+            "state_dict": net.state_dict(),
+            "obs": args.obs, "model": args.model, "input_dim": feat.dim,
+            "hist": args.hist, "width": args.width, "n_layers": args.n_layers,
+            "reuploading": args.reuploading, "per_layer_encoding": args.per_layer_encoding,
+            "noise_rabi": args.noise_rabi, "sigma_ou": sigma, "seed": args.seed,
+            "steps": args.steps, "final": {k: v for k, v in final.items() if k != "returns"},
+        }, ckpt)
+        print(f"  saved {ckpt}")
+
     out.write_text(json.dumps({
         "obs": args.obs,
         "seed": args.seed,
@@ -421,6 +433,9 @@ def main():
     p.add_argument("--lr-variational", type=float, default=1e-3)
     p.add_argument("--lr-input-scaling", type=float, default=1e-3)
     p.add_argument("--lr-output-scaling", type=float, default=1e-1)
+    p.add_argument("--save-model", action="store_true",
+                   help="write the best checkpoint next to the results JSON, so a "
+                        "trained policy can be replayed or animated later")
     p.add_argument("--select-seed0", type=int, default=2000,
                    help="seed band for checkpoint selection; must not overlap the "
                         "reporting band (1000..1000+final_episodes)")

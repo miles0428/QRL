@@ -1,0 +1,19 @@
+[mlp sxy_prevact seed2] input dim 9, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 env steps
+  step   10000  eps 0.683  train20     4.33  eval   337.48 +- 178.2  len  363.9  surv  55%
+  step   20000  eps 0.367  train20    12.76  eval   373.12 +- 126.3  len  417.1  surv  60%
+  step   30000  eps 0.050  train20    85.52  eval   372.29 +- 160.9  len  399.9  surv  65%
+  step   40000  eps 0.050  train20   224.82  eval   342.24 +- 161.8  len  373.1  surv  55%
+  step   50000  eps 0.050  train20   230.45  eval   275.69 +- 177.8  len  297.8  surv  35%
+  step   60000  eps 0.050  train20   150.43  eval    70.26 +- 93.9   len   84.8  surv   0%
+  step   70000  eps 0.050  train20    49.77  eval   264.37 +- 179.1  len  297.4  surv  35%
+  step   80000  eps 0.050  train20   119.55  eval    90.05 +- 125.3  len  109.5  surv   5%
+  step   90000  eps 0.050  train20    90.51  eval   312.35 +- 169.0  len  348.6  surv  40%
+  step  100000  eps 0.050  train20    86.27  eval   189.25 +- 158.8  len  216.6  surv  20%
+  step  110000  eps 0.050  train20    92.74  eval   282.88 +- 190.0  len  311.6  surv  45%
+  step  120000  eps 0.050  train20   109.44  eval   318.15 +- 179.1  len  345.6  surv  50%
+  step  130000  eps 0.050  train20   180.84  eval   301.20 +- 184.9  len  338.4  surv  55%
+  step  140000  eps 0.050  train20   169.30  eval   228.06 +- 170.6  len  258.7  surv  30%
+  step  150000  eps 0.050  train20    94.41  eval   168.63 +- 153.7  len  209.2  surv  20%
+  FINAL (50 greedy eps): 358.52 +- 148.13  median 447.76  len 399.5  survive 62%
+  11.2 min
+  wrote results\dqn_w6_sxy_prevact_nr0.35_seed2.json

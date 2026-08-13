@@ -1,0 +1,4 @@
+[PPO full_prevact seed1] dim 11, sigma_ou 0.06954 (noise/Rabi 0.35), 150000 steps, 73 updates
+  step   10240  train20     0.58  eval   156.34 +- 155.5  len  195.8  surv  20%
+  step   20480  train20     5.33  eval   183.04 +- 131.0  len  223.2  surv  15%
+  step   30720  train20     8.22  eval   350.26 +- 166.5  len  375.4  surv  55%

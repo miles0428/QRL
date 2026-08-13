@@ -215,6 +215,16 @@ def train(args):
 
     out = Path(args.out or f"results/ppo_{args.obs}_nr{args.noise_rabi}_seed{args.seed}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
+    if args.save_model:
+        ckpt = out.with_suffix(".pt")
+        torch.save({
+            "algo": "ppo", "state_dict": net.state_dict(),
+            "obs": args.obs, "input_dim": feat.dim, "hist": args.hist,
+            "width": args.width, "noise_rabi": args.noise_rabi, "sigma_ou": sigma,
+            "seed": args.seed, "steps": args.steps,
+            "final": {k: v for k, v in final.items() if k != "returns"},
+        }, ckpt)
+        print(f"  saved {ckpt}")
     out.write_text(json.dumps({
         "algo": "ppo", "obs": args.obs, "seed": args.seed,
         "noise_rabi": args.noise_rabi, "sigma_ou": sigma, "input_dim": feat.dim,
@@ -246,6 +256,8 @@ def main():
     p.add_argument("--eval-episodes", type=int, default=20)
     p.add_argument("--final-episodes", type=int, default=50)
     p.add_argument("--select-seed0", type=int, default=2000)
+    p.add_argument("--save-model", action="store_true",
+                   help="write the best checkpoint next to the results JSON")
     p.add_argument("--out", default=None)
     args = p.parse_args()
     train(args)
