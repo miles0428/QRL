@@ -24,7 +24,7 @@ exploration phase covers the whole sphere rather than only the states a dying
 random policy reaches. Exploration budget is counted and reported.
 
 Usage:
-    python scripts/greedy_learned.py --noise-rabi 0.5 --fit-steps 20000
+    python scripts/greedy_learned.py --noise-rabi 0.35 --fit-steps 20000
 """
 from __future__ import annotations
 
@@ -41,6 +41,7 @@ import torch.nn as nn
 torch.set_num_threads(1)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from quantum_spin_cartpole.constants import NOISE_RABI_RATIO  # noqa: E402
 from greedy_baseline import IDLE, _bloch, build_action_propagators, sigma_for_noise_rabi  # noqa: E402
 from quantum_spin_cartpole import QuantumSpinCartPoleEnv  # noqa: E402
 
@@ -243,7 +244,7 @@ def true_propagator_bloch(env):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--noise-rabi", type=float, default=0.5)
+    p.add_argument("--noise-rabi", type=float, default=NOISE_RABI_RATIO)
     p.add_argument("--fit-steps", type=int, default=20000)
     p.add_argument("--episodes", type=int, default=50)
     p.add_argument("--seeds", type=int, default=3)

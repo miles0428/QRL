@@ -19,9 +19,9 @@ greedy_baseline.py and greedy_masked.py use, so the numbers are directly
 comparable to the greedy controllers.
 
 Usage:
-    python scripts/train_dqn.py --obs full        --noise-rabi 0.5 --seed 0
-    python scripts/train_dqn.py --obs masked      --noise-rabi 0.5 --seed 0
-    python scripts/train_dqn.py --obs masked_hist --noise-rabi 0.5 --seed 0
+    python scripts/train_dqn.py --obs full        --noise-rabi 0.35 --seed 0
+    python scripts/train_dqn.py --obs masked      --noise-rabi 0.35 --seed 0
+    python scripts/train_dqn.py --obs masked_hist --noise-rabi 0.35 --seed 0
 """
 from __future__ import annotations
 
@@ -42,6 +42,7 @@ torch.set_num_threads(1)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from quantum_spin_cartpole.constants import NOISE_RABI_RATIO  # noqa: E402
 from greedy_baseline import sigma_for_noise_rabi  # noqa: E402
 from quantum_spin_cartpole import QuantumSpinCartPoleEnv  # noqa: E402
 
@@ -392,7 +393,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--obs", choices=OBS_MODES, default="full")
     p.add_argument("--hist", type=int, default=8)
-    p.add_argument("--noise-rabi", type=float, default=0.5)
+    p.add_argument("--noise-rabi", type=float, default=NOISE_RABI_RATIO)
     p.add_argument("--sigma-ou", type=float, default=None)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--steps", type=int, default=150_000)
