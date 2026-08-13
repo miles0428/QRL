@@ -179,12 +179,13 @@ def evaluate_greedy(model, n_episodes: int = 100, seed: int = 0, out_path: str |
 CKPT_FORMAT = "qrl-backbone-neutral-v1"
 
 
-def _circuit_weights(model) -> torch.Tensor:
-    """The variational angle tensor inside a model's circuit, both backends.
+def _circuit_weights(model):
+    """The variational angle tensor inside a model's circuit, both backends, or None for a
+    classical model (e.g. the MLP baseline has no circuit).
 
-    Works for VQCQFunction (model.vqc is TorchConnector or TorchStatevectorQNN) and for
-    CircuitBackend-based heads (model.backend.qnn). Falls back to searching submodules."""
-    for attr in ("vqc",):
+    Works for VQCQFunction (model.vqc is TorchConnector or TorchStatevectorQNN), the
+    distributional model (model.qnn), and CircuitBackend heads (model.backend.qnn)."""
+    for attr in ("vqc", "qnn"):
         if hasattr(model, attr):
             return next(iter(getattr(model, attr).parameters())).detach().clone()
     if hasattr(model, "backend") and hasattr(model.backend, "qnn"):
@@ -192,7 +193,7 @@ def _circuit_weights(model) -> torch.Tensor:
     for m in model.modules():
         if isinstance(m, TorchStatevectorQNN):
             return m.weights.detach().clone()
-    raise ValueError("could not locate circuit weights on model")
+    return None    # classical model (MLP): no circuit weights
 
 
 def save_ckpt(model, path: str, cfg: dict | None = None, meta: dict | None = None) -> dict:

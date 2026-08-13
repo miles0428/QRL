@@ -1,0 +1,12 @@
+kind,level,score_mean,score_std
+delay,0,1477.2,27.1
+delay,1,347.2,161.5
+delay,2,313.1,126.7
+delay,3,228.7,41.3
+delay,4,185.0,0.0
+delay,6,185.0,0.0
+speed,1.0,1477.2,27.1
+speed,1.25,273.2,82.0
+speed,1.5,260.6,65.4
+speed,2.0,162.8,22.4
+speed,2.5,126.8,0.4

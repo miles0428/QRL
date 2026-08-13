@@ -38,6 +38,13 @@ ALIVE_R = 0.01
 CLEAR_R = 1.0
 FRAME_SKIP = 4          # action repeat (Nature-DQN): coarser control + 4x fewer VQC forwards
 
+# VARIABLE-JUMP mode only: a small reward penalty charged each time the dino takes off with a
+# BIG_JUMP. This makes "always big-jump" sub-optimal (each avoidable big jump costs > the alive
+# bonus it earns while airborne), so the optimal policy is SMALL_JUMP for SHORT cacti and
+# BIG_JUMP only for TALL ones (which a small jump cannot clear). Tuned small enough that a NEEDED
+# big jump (which earns a +CLEAR_R by not crashing) is still clearly worth it.
+BIG_JUMP_PENALTY = 0.05
+
 
 class DinoRawEnv(gym.Env):
     """Raw-frame dino env (RGB observation). Used to render the demo GIF at full size."""
@@ -45,13 +52,17 @@ class DinoRawEnv(gym.Env):
     metadata = {"render_modes": ["rgb_array"]}
 
     def __init__(self, max_steps: int = 2000, seed: int | None = None,
-                 bird_prob: float | None = None, bird_start_frame: int | None = None):
+                 bird_prob: float | None = None, bird_start_frame: int | None = None,
+                 variable_jump: bool = False, full_mode: bool = False):
         super().__init__()
         self.max_steps = int(max_steps)
-        self.game = DinoGame(seed=seed, bird_prob=bird_prob, bird_start_frame=bird_start_frame)
+        self.full_mode = bool(full_mode)
+        self.game = DinoGame(seed=seed, bird_prob=bird_prob, bird_start_frame=bird_start_frame,
+                             variable_jump=variable_jump, full_mode=full_mode)
         from .dino_game import WIDTH, HEIGHT
         self.observation_space = spaces.Box(0, 255, (HEIGHT, WIDTH, 3), dtype=np.uint8)
-        self.action_space = spaces.Discrete(N_ACTIONS)
+        # FULL mode has a 4th action (DUCK); all other modes keep the 3-action space.
+        self.action_space = spaces.Discrete(4 if full_mode else N_ACTIONS)
         self._steps = 0
 
     def reset(self, *, seed: int | None = None, options=None):
@@ -84,13 +95,20 @@ class DinoImageEnv(gym.Env):
     metadata = {"render_modes": ["rgb_array"]}
 
     def __init__(self, max_steps: int = 2000, seed: int | None = None, frame_skip: int = FRAME_SKIP,
-                 bird_prob: float | None = None, bird_start_frame: int | None = None):
+                 bird_prob: float | None = None, bird_start_frame: int | None = None,
+                 variable_jump: bool = False, big_jump_penalty: float = BIG_JUMP_PENALTY,
+                 full_mode: bool = False):
         super().__init__()
         self.max_steps = int(max_steps)
         self.frame_skip = int(frame_skip)
-        self.game = DinoGame(seed=seed, bird_prob=bird_prob, bird_start_frame=bird_start_frame)
+        self.variable_jump = bool(variable_jump)
+        self.full_mode = bool(full_mode)
+        self.big_jump_penalty = float(big_jump_penalty)
+        self.game = DinoGame(seed=seed, bird_prob=bird_prob, bird_start_frame=bird_start_frame,
+                             variable_jump=variable_jump, full_mode=full_mode)
         self.observation_space = spaces.Box(0, 255, (N_STACK, FRAME_SIZE, FRAME_SIZE), dtype=np.uint8)
-        self.action_space = spaces.Discrete(N_ACTIONS)
+        # FULL mode adds a 4th action (DUCK); other modes keep Discrete(3).
+        self.action_space = spaces.Discrete(4 if full_mode else N_ACTIONS)
         self._frames: deque[np.ndarray] = deque(maxlen=N_STACK)
         self._steps = 0
 
@@ -118,6 +136,8 @@ class DinoImageEnv(gym.Env):
             self._frames.append(self.game.render_gray84())
             total_r += ALIVE_R * (self.game.score - prev_score) \
                 + CLEAR_R * (self.game.obstacles_cleared - prev_cleared)
+            if (self.variable_jump or self.full_mode) and self.game._did_big_jump:  # discourage over-using the big jump
+                total_r -= self.big_jump_penalty
             if crashed:
                 terminated = True
                 break
@@ -133,12 +153,28 @@ class DinoImageEnv(gym.Env):
 
 def make_dino_env(max_steps: int = 2000, seed: int | None = None,
                   frame_skip: int = FRAME_SKIP, bird_prob: float | None = None,
-                  bird_start_frame: int | None = None) -> DinoImageEnv:
-    """Factory for the training env ([4,84,84] uint8 observation, Discrete(3) actions).
+                  bird_start_frame: int | None = None, variable_jump: bool = False,
+                  big_jump_penalty: float = BIG_JUMP_PENALTY,
+                  full_mode: bool = False) -> DinoImageEnv:
+    """Factory for the training env ([4,84,84] uint8 observation, Discrete(3) actions by default).
 
     ``bird_prob``/``bird_start_frame`` are OPT-IN difficulty: leaving them ``None`` keeps the
     current cacti-only default (``BIRD_PROB=0.0``); passing ``bird_prob>0`` enables the harder
     BIRDS-REQUIRE-DUCK mode (jump cacti AND duck birds).
+
+    ``variable_jump`` is a separate OPT-IN mode (default OFF): the 3 actions become
+    ``{0:RUN, 1:SMALL_JUMP, 2:BIG_JUMP}``, cacti come in SHORT/TALL heights (small jump clears
+    SHORT only, big jump clears both), timing is more irregular, and each BIG_JUMP costs
+    ``big_jump_penalty`` reward so the optimal policy small-jumps short cacti and big-jumps tall
+    ones. Not meant to be combined with the bird mode.
+
+    ``full_mode`` is the OPT-IN FULL task (default OFF) that COMBINES both: 4 actions
+    ``{0:RUN, 1:SMALL_JUMP, 2:BIG_JUMP, 3:DUCK}`` and a random mix of SHORT cactus / TALL cactus /
+    (duck-only) BIRD on the widened irregular gap. ``action_space`` becomes ``Discrete(4)``. It
+    reuses the variable-jump physics + the big-jump reward penalty. When ``full_mode`` is set it
+    supersedes ``variable_jump``.
     """
     return DinoImageEnv(max_steps=max_steps, seed=seed, frame_skip=frame_skip,
-                        bird_prob=bird_prob, bird_start_frame=bird_start_frame)
+                        bird_prob=bird_prob, bird_start_frame=bird_start_frame,
+                        variable_jump=variable_jump, big_jump_penalty=big_jump_penalty,
+                        full_mode=full_mode)

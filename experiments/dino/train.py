@@ -30,9 +30,9 @@ import experiments.dino  # noqa: F401  (QRL-root sys.path bootstrap)
 from experiments.common import save_ckpt
 from experiments.dino.env import make_dino_env
 from experiments.dino.model import DinoQFunction
-from experiments.dino.replay import ImageReplayBuffer
+from experiments.dino.replay import ImageReplayBuffer, ImageRainbowReplayBuffer
 from src.seeds import make_rng, set_global_seeds
-from src.trainer import dqn_update, linear_epsilon, select_action
+from src.trainer import dqn_update, linear_epsilon, select_action, NStepAccumulator, rainbow_update
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RESULTS_DIR = os.path.join(_ROOT, "results")
@@ -54,11 +54,16 @@ def default_config() -> dict:
         grad_clip=10.0,
         double=True,
         eps_start=1.0, eps_end=0.05, eps_decay_steps=9000,   # more exploration to discover clears
+        # Rainbow value components (brief: "PER + multi-step help here"); default OFF -> plain Double-QDQN.
+        n_step=1,            # >1 -> n-step returns (faster credit assignment for the delayed clear bonus)
+        per=False,           # True -> prioritized experience replay (over-sample rare critical transitions)
+        per_alpha=0.5, per_beta_start=0.4, per_beta_end=1.0, per_beta_steps=15000,
     )
 
 
 def evaluate(model, n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2000,
-             bird_prob: float | None = None, bird_start_frame: int | None = None) -> dict:
+             bird_prob: float | None = None, bird_start_frame: int | None = None,
+             variable_jump: bool = False, full_mode: bool = False) -> dict:
     """Greedy (epsilon=0) eval over fixed seeds → score stats (mean/median/best + list)."""
     was_training = model.training
     model.eval()
@@ -66,7 +71,8 @@ def evaluate(model, n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2
     with torch.no_grad():
         for i in range(n_episodes):
             env = make_dino_env(max_steps=max_steps, seed=seed + i,
-                                bird_prob=bird_prob, bird_start_frame=bird_start_frame)
+                                bird_prob=bird_prob, bird_start_frame=bird_start_frame,
+                                variable_jump=variable_jump, full_mode=full_mode)
             obs, info = env.reset(seed=seed + i)
             done = False
             while not done:
@@ -83,16 +89,19 @@ def evaluate(model, n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2
 
 
 def random_baseline(n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2000,
-                    bird_prob: float | None = None, bird_start_frame: int | None = None) -> dict:
+                    bird_prob: float | None = None, bird_start_frame: int | None = None,
+                    variable_jump: bool = False, full_mode: bool = False) -> dict:
     rng = np.random.default_rng(seed)
     scores = []
     for i in range(n_episodes):
         env = make_dino_env(max_steps=max_steps, seed=seed + i,
-                            bird_prob=bird_prob, bird_start_frame=bird_start_frame)
+                            bird_prob=bird_prob, bird_start_frame=bird_start_frame,
+                            variable_jump=variable_jump, full_mode=full_mode)
         obs, info = env.reset(seed=seed + i)
+        n_act = env.action_space.n            # honor the env's action count (4 in full mode, else 3)
         done = False
         while not done:
-            obs, r, term, trunc, info = env.step(int(rng.integers(3)))
+            obs, r, term, trunc, info = env.step(int(rng.integers(n_act)))
             done = term or trunc
         scores.append(info["score"])
     s = np.array(scores, dtype=float)
@@ -115,13 +124,17 @@ def _save(model, ckpt_path, ctor, seed, ev, pc, cfg):
 def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "zz",
           n_layers: int = 3, head: str = "vqc", entangler: str = "cx", seed: int = 0, name: str = "dino",
           w_init: float = 10.0, lam_init: float = 1.0, cfg: dict | None = None, log=print,
-          bird_prob: float | None = None, bird_start_frame: int | None = None) -> dict:
+          bird_prob: float | None = None, bird_start_frame: int | None = None,
+          variable_jump: bool = False, full_mode: bool = False, n_actions: int = 3) -> dict:
     cfg = {**default_config(), **(cfg or {})}
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    # FULL mode always needs the 4-action head; make it explicit even if --n-actions wasn't passed.
+    if full_mode:
+        n_actions = 4
     csv_path = os.path.join(RESULTS_DIR, f"{name}.csv")
     ckpt_path = os.path.join(RESULTS_DIR, f"{name}.pt")
     log_path = os.path.join(RESULTS_DIR, f"{name}.log")
-    ctor = dict(n_qubits=n_qubits, n_actions=3, n_layers=n_layers, encoder=encoder,
+    ctor = dict(n_qubits=n_qubits, n_actions=n_actions, n_layers=n_layers, encoder=encoder,
                 observable=observable, head=head, entangler=entangler)
 
     # tee every console line into a persistent results/{name}.log (a permanent training record)
@@ -136,7 +149,7 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
     set_global_seeds(seed)
     rng = make_rng(seed)
 
-    model = DinoQFunction(n_qubits=n_qubits, n_actions=3, n_layers=n_layers, encoder=encoder,
+    model = DinoQFunction(n_qubits=n_qubits, n_actions=n_actions, n_layers=n_layers, encoder=encoder,
                           observable=observable, head=head, entangler=entangler,
                           w_init=w_init, lam_init=lam_init, seed=seed)
     model.train()
@@ -151,10 +164,23 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
         p.requires_grad_(False)
 
     optimizer = torch.optim.Adam(model.param_groups())
-    buffer = ImageReplayBuffer(cfg["replay_capacity"], (4, 84, 84), rng)
+    # Rainbow value path (n-step and/or PER) reuses the backbone NStepAccumulator + rainbow_update;
+    # only the buffer stores image states. Off by default -> plain Double-QDQN via dqn_update.
+    n_step = int(cfg.get("n_step", 1))
+    per_on = bool(cfg.get("per", False))
+    use_rainbow = per_on or n_step > 1
+    if use_rainbow:
+        buffer = ImageRainbowReplayBuffer(cfg["replay_capacity"], (4, 84, 84), rng,
+                                          alpha=float(cfg.get("per_alpha", 0.5)))
+        nstep_acc = NStepAccumulator(n_step, cfg["gamma"])
+        log(f"[{name}] Rainbow value path: n_step={n_step} per={per_on}")
+    else:
+        buffer = ImageReplayBuffer(cfg["replay_capacity"], (4, 84, 84), rng)
+        nstep_acc = None
 
     env = make_dino_env(max_steps=cfg["max_steps"], seed=seed,
-                        bird_prob=bird_prob, bird_start_frame=bird_start_frame)
+                        bird_prob=bird_prob, bird_start_frame=bird_start_frame,
+                        variable_jump=variable_jump, full_mode=full_mode)
 
     columns = ["episode", "env_steps", "score", "ma20", "epsilon", "mean_loss",
                "grad_steps", "wall_clock_s", "w0", "w1", "w2", "lam_mean"]
@@ -179,18 +205,34 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
             epsilon = linear_epsilon(env_steps, cfg["eps_start"], cfg["eps_end"], cfg["eps_decay_steps"])
             action = select_action(model, obs, epsilon, rng, model.n_actions)
             next_obs, reward, terminated, truncated, info = env.step(action)
-            buffer.push(obs, action, float(reward), next_obs, bool(terminated))  # only crash masks bootstrap
+            if use_rainbow:                     # accumulate into n-step transitions, then store
+                for tr in nstep_acc.push(obs, action, float(reward), next_obs, bool(terminated)):
+                    buffer.push(*tr)            # (s, a, R, s_boot, done, gamma**k)
+            else:
+                buffer.push(obs, action, float(reward), next_obs, bool(terminated))  # only crash masks bootstrap
             obs = next_obs
             score = info["score"]
             env_steps += 1
             if len(buffer) >= cfg["learning_starts"] and env_steps % cfg["train_every"] == 0:
-                loss = dqn_update(model, target, buffer, cfg["batch_size"], cfg["gamma"],
-                                  optimizer, cfg["grad_clip"], double=cfg["double"])
+                if use_rainbow:
+                    beta = min(cfg["per_beta_end"], cfg["per_beta_start"] + (cfg["per_beta_end"] -
+                               cfg["per_beta_start"]) * grad_steps / max(cfg["per_beta_steps"], 1))
+                    rbatch = buffer.sample(cfg["batch_size"], per=per_on, beta=beta)
+                    loss, td = rainbow_update(model, target, rbatch, cfg["gamma"], optimizer,
+                                              cfg["grad_clip"], double=cfg["double"])
+                    if per_on:
+                        buffer.update_priorities(rbatch.indices, td)
+                else:
+                    loss = dqn_update(model, target, buffer, cfg["batch_size"], cfg["gamma"],
+                                      optimizer, cfg["grad_clip"], double=cfg["double"])
                 losses.append(loss)
                 grad_steps += 1
                 if grad_steps % cfg["target_update"] == 0:
                     target.load_state_dict(model.state_dict())
             done = terminated or truncated
+        if use_rainbow:                         # drain the n-step tail at episode end (handles truncation)
+            for tr in nstep_acc.flush():
+                buffer.push(*tr)
 
         score_window.append(score)
         ma20 = float(np.mean(score_window))
@@ -226,7 +268,8 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
     # restore best weights before final eval + checkpoint (DQN forgets its peak)
     model.load_state_dict(best_state)
     ev = evaluate(model, n_episodes=20, max_steps=cfg["max_steps"],
-                  bird_prob=bird_prob, bird_start_frame=bird_start_frame)
+                  bird_prob=bird_prob, bird_start_frame=bird_start_frame,
+                  variable_jump=variable_jump, full_mode=full_mode)
     log(f"[{name}] EVAL(best) mean {ev['mean']:.1f} median {ev['median']:.1f} best {ev['best']:.0f} "
         f"(min {ev['min']:.0f})")
 
@@ -251,6 +294,9 @@ def main():
     ap.add_argument("--head", default="vqc", choices=["vqc", "classical"])
     ap.add_argument("--entangler", default="cx", choices=["cx", "cz", "none"])
     ap.add_argument("--steps", type=int, default=30000, help="env-step budget")
+    ap.add_argument("--n-step", type=int, default=1, help=">1 enables n-step returns (Rainbow)")
+    ap.add_argument("--per", action="store_true", help="enable prioritized experience replay (Rainbow)")
+    ap.add_argument("--eps-end", type=float, default=0.05, help="final epsilon floor")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--name", default="dino_b")
     # OPT-IN difficulty: default None keeps the cacti-only behavior (BIRD_PROB=0.0 in dino_game).
@@ -259,11 +305,24 @@ def main():
                     help="opt-in: per-spawn bird probability (default None = cacti-only)")
     ap.add_argument("--bird-start-frame", type=int, default=None,
                     help="opt-in: first game frame birds may spawn (default None = module default)")
+    # OPT-IN VARIABLE-JUMP mode: actions become {RUN, SMALL_JUMP, BIG_JUMP}; SHORT/TALL cacti,
+    # small-jump clears short only, big-jump clears both but costs a small reward penalty.
+    ap.add_argument("--variable-jump", action="store_true",
+                    help="opt-in: VARIABLE-JUMP mode (pick SMALL vs BIG jump for cactus height)")
+    # OPT-IN FULL mode: 4 actions {RUN,SMALL_JUMP,BIG_JUMP,DUCK}; mix of SHORT/TALL cacti + birds.
+    ap.add_argument("--full-mode", action="store_true",
+                    help="opt-in: FULL mode (SHORT/TALL cacti + duck-only birds, 4 actions)")
+    ap.add_argument("--n-actions", type=int, default=3,
+                    help="number of actions/Q-outputs (default 3; forced to 4 by --full-mode)")
     args = ap.parse_args()
     res = train(encoder=args.encoder, n_qubits=args.n_qubits, n_layers=args.n_layers,
                 observable=args.observable, head=args.head, entangler=args.entangler,
-                seed=args.seed, name=args.name, cfg={"max_env_steps": args.steps},
-                bird_prob=args.bird_prob, bird_start_frame=args.bird_start_frame)
+                seed=args.seed, name=args.name,
+                cfg={"max_env_steps": args.steps, "n_step": args.n_step, "per": args.per,
+                     "eps_end": args.eps_end},
+                bird_prob=args.bird_prob, bird_start_frame=args.bird_start_frame,
+                variable_jump=args.variable_jump, full_mode=args.full_mode,
+                n_actions=args.n_actions)
     print("DONE:", {k: res[k] for k in ("name", "episodes", "env_steps")}, "eval:", res["eval"]["mean"])
 
 
