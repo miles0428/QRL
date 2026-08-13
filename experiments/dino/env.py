@@ -44,10 +44,11 @@ class DinoRawEnv(gym.Env):
 
     metadata = {"render_modes": ["rgb_array"]}
 
-    def __init__(self, max_steps: int = 2000, seed: int | None = None):
+    def __init__(self, max_steps: int = 2000, seed: int | None = None,
+                 bird_prob: float | None = None, bird_start_frame: int | None = None):
         super().__init__()
         self.max_steps = int(max_steps)
-        self.game = DinoGame(seed=seed)
+        self.game = DinoGame(seed=seed, bird_prob=bird_prob, bird_start_frame=bird_start_frame)
         from .dino_game import WIDTH, HEIGHT
         self.observation_space = spaces.Box(0, 255, (HEIGHT, WIDTH, 3), dtype=np.uint8)
         self.action_space = spaces.Discrete(N_ACTIONS)
@@ -82,11 +83,12 @@ class DinoImageEnv(gym.Env):
 
     metadata = {"render_modes": ["rgb_array"]}
 
-    def __init__(self, max_steps: int = 2000, seed: int | None = None, frame_skip: int = FRAME_SKIP):
+    def __init__(self, max_steps: int = 2000, seed: int | None = None, frame_skip: int = FRAME_SKIP,
+                 bird_prob: float | None = None, bird_start_frame: int | None = None):
         super().__init__()
         self.max_steps = int(max_steps)
         self.frame_skip = int(frame_skip)
-        self.game = DinoGame(seed=seed)
+        self.game = DinoGame(seed=seed, bird_prob=bird_prob, bird_start_frame=bird_start_frame)
         self.observation_space = spaces.Box(0, 255, (N_STACK, FRAME_SIZE, FRAME_SIZE), dtype=np.uint8)
         self.action_space = spaces.Discrete(N_ACTIONS)
         self._frames: deque[np.ndarray] = deque(maxlen=N_STACK)
@@ -130,6 +132,13 @@ class DinoImageEnv(gym.Env):
 
 
 def make_dino_env(max_steps: int = 2000, seed: int | None = None,
-                  frame_skip: int = FRAME_SKIP) -> DinoImageEnv:
-    """Factory for the training env ([4,84,84] uint8 observation, Discrete(3) actions)."""
-    return DinoImageEnv(max_steps=max_steps, seed=seed, frame_skip=frame_skip)
+                  frame_skip: int = FRAME_SKIP, bird_prob: float | None = None,
+                  bird_start_frame: int | None = None) -> DinoImageEnv:
+    """Factory for the training env ([4,84,84] uint8 observation, Discrete(3) actions).
+
+    ``bird_prob``/``bird_start_frame`` are OPT-IN difficulty: leaving them ``None`` keeps the
+    current cacti-only default (``BIRD_PROB=0.0``); passing ``bird_prob>0`` enables the harder
+    BIRDS-REQUIRE-DUCK mode (jump cacti AND duck birds).
+    """
+    return DinoImageEnv(max_steps=max_steps, seed=seed, frame_skip=frame_skip,
+                        bird_prob=bird_prob, bird_start_frame=bird_start_frame)

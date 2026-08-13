@@ -1,0 +1,41 @@
+[dino_birds_classical_v2] encoder=trainable_cnn obs=zz qubits=6 layers=3 | params: CNN(trainable) 480,294 vs VQC 0 (+lam 0, w 0) | total 480,315
+[dino_birds_classical_v2] ep    1 | steps     46/24000 | score  182 | ma20  182.0 | eps 0.995 | loss      nan | w 0.00,0.00,0.00 | 0s
+[dino_birds_classical_v2] ep   10 | steps    530/24000 | score  234 | ma20  209.5 | eps 0.944 | loss      nan | w 0.00,0.00,0.00 | 1s
+[dino_birds_classical_v2] ep   20 | steps   1063/24000 | score  182 | ma20  210.3 | eps 0.888 | loss    0.075 | w 0.00,0.00,0.00 | 5s
+[dino_birds_classical_v2] ep   30 | steps   1567/24000 | score  187 | ma20  205.2 | eps 0.835 | loss    0.022 | w 0.00,0.00,0.00 | 11s
+[dino_birds_classical_v2] ep   40 | steps   2103/24000 | score  279 | ma20  205.7 | eps 0.778 | loss    0.020 | w 0.00,0.00,0.00 | 18s
+[dino_birds_classical_v2] ep   50 | steps   2643/24000 | score  182 | ma20  212.7 | eps 0.721 | loss    0.014 | w 0.00,0.00,0.00 | 24s
+[dino_birds_classical_v2] ep   60 | steps   3145/24000 | score  240 | ma20  205.6 | eps 0.668 | loss    0.010 | w 0.00,0.00,0.00 | 31s
+[dino_birds_classical_v2] ep   70 | steps   3724/24000 | score  183 | ma20  213.4 | eps 0.607 | loss    0.021 | w 0.00,0.00,0.00 | 40s
+[dino_birds_classical_v2] ep   80 | steps   4256/24000 | score  231 | ma20  219.5 | eps 0.551 | loss    0.010 | w 0.00,0.00,0.00 | 94s
+[dino_birds_classical_v2] ep   90 | steps   4764/24000 | score  281 | ma20  205.2 | eps 0.497 | loss    0.008 | w 0.00,0.00,0.00 | 102s
+[dino_birds_classical_v2] ep  100 | steps   5302/24000 | score  187 | ma20  206.8 | eps 0.440 | loss    0.005 | w 0.00,0.00,0.00 | 111s
+[dino_birds_classical_v2] ep  110 | steps   5819/24000 | score  185 | ma20  208.5 | eps 0.386 | loss    0.011 | w 0.00,0.00,0.00 | 121s
+[dino_birds_classical_v2] ep  120 | steps   6407/24000 | score  185 | ma20  218.0 | eps 0.324 | loss    0.006 | w 0.00,0.00,0.00 | 133s
+[dino_birds_classical_v2] ep  130 | steps   6937/24000 | score  182 | ma20  220.9 | eps 0.268 | loss    0.011 | w 0.00,0.00,0.00 | 144s
+[dino_birds_classical_v2] ep  140 | steps   7553/24000 | score  232 | ma20  226.7 | eps 0.203 | loss    0.015 | w 0.00,0.00,0.00 | 157s
+[dino_birds_classical_v2] ep  150 | steps   8084/24000 | score  185 | ma20  226.7 | eps 0.147 | loss    0.005 | w 0.00,0.00,0.00 | 166s
+[dino_birds_classical_v2] ep  160 | steps   8572/24000 | score  182 | ma20  201.2 | eps 0.095 | loss    0.011 | w 0.00,0.00,0.00 | 176s
+[dino_birds_classical_v2] ep  170 | steps   9132/24000 | score  327 | ma20  207.2 | eps 0.050 | loss    0.005 | w 0.00,0.00,0.00 | 186s
+[dino_birds_classical_v2] ep  180 | steps   9711/24000 | score  237 | ma20  224.9 | eps 0.050 | loss    0.008 | w 0.00,0.00,0.00 | 197s
+[dino_birds_classical_v2] ep  190 | steps  10202/24000 | score  182 | ma20  210.9 | eps 0.050 | loss    0.001 | w 0.00,0.00,0.00 | 214s
+[dino_birds_classical_v2] ep  200 | steps  10684/24000 | score  184 | ma20  191.6 | eps 0.050 | loss    0.001 | w 0.00,0.00,0.00 | 223s
+[dino_birds_classical_v2] ep  210 | steps  11185/24000 | score  189 | ma20  193.9 | eps 0.050 | loss    0.005 | w 0.00,0.00,0.00 | 236s
+[dino_birds_classical_v2] ep  220 | steps  11666/24000 | score  186 | ma20  194.2 | eps 0.050 | loss    0.006 | w 0.00,0.00,0.00 | 247s
+[dino_birds_classical_v2] ep  230 | steps  12157/24000 | score  182 | ma20  192.1 | eps 0.050 | loss    0.006 | w 0.00,0.00,0.00 | 257s
+[dino_birds_classical_v2] ep  240 | steps  12646/24000 | score  188 | ma20  193.4 | eps 0.050 | loss    0.001 | w 0.00,0.00,0.00 | 266s
+[dino_birds_classical_v2] ep  250 | steps  13240/24000 | score  187 | ma20  213.6 | eps 0.050 | loss    0.007 | w 0.00,0.00,0.00 | 277s
+[dino_birds_classical_v2] ep  260 | steps  13975/24000 | score  184 | ma20  262.5 | eps 0.050 | loss    0.006 | w 0.00,0.00,0.00 | 292s
+[dino_birds_classical_v2] ep  270 | steps  14614/24000 | score  326 | ma20  271.9 | eps 0.050 | loss    0.002 | w 0.00,0.00,0.00 | 304s
+[dino_birds_classical_v2] ep  280 | steps  15292/24000 | score  185 | ma20  261.1 | eps 0.050 | loss    0.005 | w 0.00,0.00,0.00 | 319s
+[dino_birds_classical_v2] ep  290 | steps  15913/24000 | score  318 | ma20  257.4 | eps 0.050 | loss    0.003 | w 0.00,0.00,0.00 | 332s
+[dino_birds_classical_v2] ep  300 | steps  16644/24000 | score  385 | ma20  267.9 | eps 0.050 | loss    0.003 | w 0.00,0.00,0.00 | 346s
+[dino_birds_classical_v2] ep  310 | steps  17297/24000 | score  531 | ma20  274.4 | eps 0.050 | loss    0.006 | w 0.00,0.00,0.00 | 360s
+[dino_birds_classical_v2] ep  320 | steps  18041/24000 | score  185 | ma20  276.9 | eps 0.050 | loss    0.004 | w 0.00,0.00,0.00 | 376s
+[dino_birds_classical_v2] ep  330 | steps  18628/24000 | score  277 | ma20  263.2 | eps 0.050 | loss    0.004 | w 0.00,0.00,0.00 | 388s
+[dino_birds_classical_v2] ep  340 | steps  19652/24000 | score  379 | ma20  319.4 | eps 0.050 | loss    0.004 | w 0.00,0.00,0.00 | 409s
+[dino_birds_classical_v2] ep  350 | steps  20880/24000 | score  509 | ma20  447.6 | eps 0.050 | loss    0.019 | w 0.00,0.00,0.00 | 432s
+[dino_birds_classical_v2] ep  360 | steps  22904/24000 | score  716 | ma20  647.4 | eps 0.050 | loss    0.020 | w 0.00,0.00,0.00 | 472s
+[dino_birds_classical_v2] EVAL(best) mean 1423.5 median 1585.5 best 2000 (min 578)
+[dino_birds_classical_v2] saved checkpoint -> C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_birds_classical_v2.pt
+[dino_birds_classical_v2] logs: C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_birds_classical_v2.csv (per-episode) | C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_birds_classical_v2.log (console)

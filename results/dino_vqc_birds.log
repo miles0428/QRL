@@ -1,0 +1,51 @@
+[dino_vqc_birds] encoder=trainable_cnn obs=zz qubits=6 layers=3 | params: CNN(trainable) 480,294 vs VQC 36 (+lam 6, w 3) | total 480,339
+[dino_vqc_birds] ep    1 | steps     46/24000 | score  182 | ma20  182.0 | eps 0.995 | loss      nan | w 10.00,10.00,10.00 | 0s
+[dino_vqc_birds] ep   10 | steps    530/24000 | score  234 | ma20  209.5 | eps 0.944 | loss      nan | w 10.00,10.00,10.00 | 1s
+[dino_vqc_birds] ep   20 | steps   1068/24000 | score  233 | ma20  211.1 | eps 0.887 | loss    2.139 | w 10.22,9.10,10.44 | 9s
+[dino_vqc_birds] ep   30 | steps   1558/24000 | score  182 | ma20  203.0 | eps 0.836 | loss    0.526 | w 9.84,8.97,10.45 | 24s
+[dino_vqc_birds] ep   40 | steps   2114/24000 | score  185 | ma20  206.6 | eps 0.777 | loss    1.864 | w 10.14,9.68,10.74 | 42s
+[dino_vqc_birds] ep   50 | steps   2606/24000 | score  227 | ma20  207.0 | eps 0.725 | loss    0.726 | w 10.97,10.09,11.14 | 58s
+[dino_vqc_birds] ep   60 | steps   3119/24000 | score  185 | ma20  198.4 | eps 0.671 | loss    0.331 | w 9.82,9.08,9.65 | 75s
+[dino_vqc_birds] ep   70 | steps   3640/24000 | score  276 | ma20  204.0 | eps 0.616 | loss    0.423 | w 9.79,9.05,9.60 | 93s
+[dino_vqc_birds] ep   80 | steps   4121/24000 | score  185 | ma20  197.4 | eps 0.565 | loss    0.664 | w 9.81,9.06,9.63 | 111s
+[dino_vqc_birds] ep   90 | steps   4701/24000 | score  237 | ma20  209.4 | eps 0.504 | loss    0.690 | w 9.74,9.11,9.54 | 137s
+[dino_vqc_birds] ep  100 | steps   5323/24000 | score  369 | ma20  237.9 | eps 0.438 | loss    0.417 | w 9.76,9.02,9.55 | 165s
+[dino_vqc_birds] ep  110 | steps   5911/24000 | score  185 | ma20  239.6 | eps 0.376 | loss    0.317 | w 9.74,9.10,9.51 | 194s
+[dino_vqc_birds] ep  120 | steps   6440/24000 | score  238 | ma20  220.8 | eps 0.320 | loss    0.281 | w 9.76,9.09,9.54 | 220s
+[dino_vqc_birds] ep  130 | steps   7000/24000 | score  185 | ma20  215.2 | eps 0.261 | loss    0.384 | w 9.73,8.97,9.41 | 246s
+[dino_vqc_birds] ep  140 | steps   7540/24000 | score  231 | ma20  217.4 | eps 0.204 | loss    0.494 | w 9.66,8.96,9.42 | 271s
+[dino_vqc_birds] ep  150 | steps   8090/24000 | score  232 | ma20  215.2 | eps 0.146 | loss    0.388 | w 9.68,9.00,9.40 | 297s
+[dino_vqc_birds] ep  160 | steps   8618/24000 | score  232 | ma20  212.6 | eps 0.090 | loss    0.524 | w 9.63,9.02,9.36 | 320s
+[dino_vqc_birds] ep  170 | steps   9162/24000 | score  326 | ma20  211.6 | eps 0.050 | loss    0.384 | w 9.58,8.91,9.37 | 342s
+[dino_vqc_birds] ep  180 | steps   9645/24000 | score  185 | ma20  202.5 | eps 0.050 | loss    0.365 | w 9.59,8.94,9.30 | 363s
+[dino_vqc_birds] ep  190 | steps  10165/24000 | score  185 | ma20  197.5 | eps 0.050 | loss    0.212 | w 9.60,8.92,9.32 | 386s
+[dino_vqc_birds] ep  200 | steps  10668/24000 | score  185 | ma20  201.6 | eps 0.050 | loss    0.366 | w 9.59,8.78,9.29 | 409s
+[dino_vqc_birds] ep  210 | steps  11146/24000 | score  182 | ma20  193.5 | eps 0.050 | loss    0.281 | w 9.45,8.64,9.24 | 430s
+[dino_vqc_birds] ep  220 | steps  11648/24000 | score  228 | ma20  193.4 | eps 0.050 | loss    0.206 | w 9.43,8.62,9.18 | 453s
+[dino_vqc_birds] ep  230 | steps  12152/24000 | score  185 | ma20  198.3 | eps 0.050 | loss    0.337 | w 9.42,8.65,9.04 | 477s
+[dino_vqc_birds] ep  240 | steps  12657/24000 | score  182 | ma20  198.8 | eps 0.050 | loss    0.393 | w 9.29,8.52,9.11 | 499s
+[dino_vqc_birds] ep  250 | steps  13137/24000 | score  185 | ma20  194.3 | eps 0.050 | loss    0.664 | w 9.31,8.54,9.00 | 520s
+[dino_vqc_birds] ep  260 | steps  13653/24000 | score  234 | ma20  196.6 | eps 0.050 | loss    0.352 | w 9.34,8.57,9.05 | 543s
+[dino_vqc_birds] ep  270 | steps  14135/24000 | score  234 | ma20  196.8 | eps 0.050 | loss    0.294 | w 9.31,8.61,9.02 | 565s
+[dino_vqc_birds] ep  280 | steps  14617/24000 | score  186 | ma20  190.1 | eps 0.050 | loss    0.540 | w 9.25,8.54,8.99 | 587s
+[dino_vqc_birds] ep  290 | steps  15156/24000 | score  185 | ma20  201.4 | eps 0.050 | loss    0.280 | w 9.15,8.36,8.93 | 610s
+[dino_vqc_birds] ep  300 | steps  15626/24000 | score  185 | ma20  199.0 | eps 0.050 | loss    0.219 | w 9.16,8.31,8.85 | 630s
+[dino_vqc_birds] ep  310 | steps  16145/24000 | score  185 | ma20  195.2 | eps 0.050 | loss    0.234 | w 9.09,8.33,8.87 | 652s
+[dino_vqc_birds] ep  320 | steps  16674/24000 | score  187 | ma20  206.9 | eps 0.050 | loss    0.100 | w 9.10,8.31,8.87 | 676s
+[dino_vqc_birds] ep  330 | steps  17188/24000 | score  275 | ma20  205.9 | eps 0.050 | loss    0.475 | w 9.02,8.13,8.78 | 700s
+[dino_vqc_birds] ep  340 | steps  17671/24000 | score  182 | ma20  196.8 | eps 0.050 | loss    0.241 | w 8.99,8.15,8.83 | 722s
+[dino_vqc_birds] ep  350 | steps  18161/24000 | score  185 | ma20  191.9 | eps 0.050 | loss    0.385 | w 8.99,8.18,8.74 | 744s
+[dino_vqc_birds] ep  360 | steps  18651/24000 | score  182 | ma20  193.3 | eps 0.050 | loss    0.330 | w 8.94,8.10,8.74 | 764s
+[dino_vqc_birds] ep  370 | steps  19149/24000 | score  182 | ma20  195.2 | eps 0.050 | loss    0.349 | w 8.91,8.01,8.71 | 786s
+[dino_vqc_birds] ep  380 | steps  19649/24000 | score  182 | ma20  197.2 | eps 0.050 | loss    0.320 | w 8.78,8.02,8.60 | 811s
+[dino_vqc_birds] ep  390 | steps  20190/24000 | score  337 | ma20  205.6 | eps 0.050 | loss    0.263 | w 8.71,7.95,8.44 | 835s
+[dino_vqc_birds] ep  400 | steps  20669/24000 | score  185 | ma20  201.3 | eps 0.050 | loss    0.302 | w 8.84,8.09,8.45 | 857s
+[dino_vqc_birds] ep  410 | steps  21183/24000 | score  280 | ma20  195.7 | eps 0.050 | loss    0.482 | w 8.54,7.65,8.10 | 879s
+[dino_vqc_birds] ep  420 | steps  21673/24000 | score  182 | ma20  198.1 | eps 0.050 | loss    0.252 | w 8.58,7.75,8.18 | 900s
+[dino_vqc_birds] ep  430 | steps  22175/24000 | score  228 | ma20  195.9 | eps 0.050 | loss    0.411 | w 8.59,7.78,8.05 | 921s
+[dino_vqc_birds] ep  440 | steps  22639/24000 | score  182 | ma20  190.7 | eps 0.050 | loss    0.168 | w 8.43,7.59,8.00 | 940s
+[dino_vqc_birds] ep  450 | steps  23108/24000 | score  182 | ma20  184.2 | eps 0.050 | loss    0.412 | w 8.34,7.60,7.97 | 959s
+[dino_vqc_birds] ep  460 | steps  23647/24000 | score  276 | ma20  198.9 | eps 0.050 | loss    0.168 | w 8.47,7.69,7.91 | 982s
+[dino_vqc_birds] EVAL(best) mean 185.0 median 185.0 best 185 (min 185)
+[dino_vqc_birds] saved checkpoint -> C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_vqc_birds.pt
+[dino_vqc_birds] logs: C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_vqc_birds.csv (per-episode) | C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_vqc_birds.log (console)

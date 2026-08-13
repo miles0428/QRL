@@ -85,13 +85,23 @@ class Obstacle:
 
 
 class DinoGame:
-    """Pure game logic + off-screen rendering. Frame-stepped by :class:`DinoEnv`."""
+    """Pure game logic + off-screen rendering. Frame-stepped by :class:`DinoEnv`.
 
-    def __init__(self, seed: int | None = None):
+    Difficulty is OPT-IN and backward-compatible: ``bird_prob`` / ``bird_start_frame``
+    default to the module constants (``BIRD_PROB=0.0`` -> the current cacti-only task), so
+    ``DinoGame(seed=...)`` behaves exactly as before. Pass ``bird_prob>0`` to enable the
+    harder BIRDS-REQUIRE-DUCK mode where the agent must JUMP cacti AND DUCK birds.
+    """
+
+    def __init__(self, seed: int | None = None, bird_prob: float | None = None,
+                 bird_start_frame: int | None = None):
         pygame.init()
         # One reusable off-screen surface (never shown). All draws land here.
         self._surf = pygame.Surface((WIDTH, HEIGHT))
         self.rng = random.Random(seed)
+        # per-instance difficulty (defaults preserve the module-level cacti-only behavior)
+        self.bird_prob = float(BIRD_PROB if bird_prob is None else bird_prob)
+        self.bird_start_frame = int(BIRD_START_FRAME if bird_start_frame is None else bird_start_frame)
         self.reset()
 
     # -- lifecycle -----------------------------------------------------------
@@ -130,8 +140,8 @@ class DinoGame:
         if self.frame < WARMUP_FRAMES:
             return
         # birds only after a pure-cactus intro, and rarer (duck is the harder skill)
-        bird_ok = self.frame > BIRD_START_FRAME
-        if bird_ok and self.rng.random() < BIRD_PROB:
+        bird_ok = self.frame > self.bird_start_frame
+        if bird_ok and self.rng.random() < self.bird_prob:
             r = pygame.Rect(WIDTH, BIRD_TOP, BIRD_W, BIRD_BOTTOM - BIRD_TOP)
             self.obstacles.append(Obstacle("bird", r))
         else:

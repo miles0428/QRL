@@ -1,0 +1,37 @@
+[dino_abl_pretrainedA] encoder=pretrained obs=zz qubits=6 layers=3 | params: CNN(trainable) 3,462 vs VQC 36 (+lam 6, w 3) | total 3,507
+[dino_abl_pretrainedA] ep    1 | steps     46/20000 | score  182 | ma20  182.0 | eps 0.995 | loss      nan | w 10.00,10.00,10.00 | 0s
+[dino_abl_pretrainedA] ep   10 | steps    530/20000 | score  234 | ma20  209.5 | eps 0.944 | loss      nan | w 10.00,10.00,10.00 | 2s
+[dino_abl_pretrainedA] ep   20 | steps   1067/20000 | score  286 | ma20  211.0 | eps 0.887 | loss    3.968 | w 10.22,10.11,10.15 | 20s
+[dino_abl_pretrainedA] ep   30 | steps   1589/20000 | score  238 | ma20  209.1 | eps 0.832 | loss    1.687 | w 9.58,9.34,10.02 | 58s
+[dino_abl_pretrainedA] ep   40 | steps   2145/20000 | score  191 | ma20  212.9 | eps 0.774 | loss    4.811 | w 10.26,9.49,10.02 | 99s
+[dino_abl_pretrainedA] ep   50 | steps   2798/20000 | score  284 | ma20  239.4 | eps 0.705 | loss    0.741 | w 9.81,9.81,9.80 | 148s
+[dino_abl_pretrainedA] ep   60 | steps   3317/20000 | score  185 | ma20  231.9 | eps 0.650 | loss    0.928 | w 9.92,9.88,9.84 | 189s
+[dino_abl_pretrainedA] ep   70 | steps   3891/20000 | score  316 | ma20  215.8 | eps 0.589 | loss    0.685 | w 9.91,9.98,9.75 | 233s
+[dino_abl_pretrainedA] ep   80 | steps   4520/20000 | score  191 | ma20  238.0 | eps 0.523 | loss    0.787 | w 9.86,10.04,9.62 | 283s
+[dino_abl_pretrainedA] ep   90 | steps   5077/20000 | score  189 | ma20  234.9 | eps 0.464 | loss    0.414 | w 9.85,9.96,9.58 | 329s
+[dino_abl_pretrainedA] ep  100 | steps   5601/20000 | score  189 | ma20  213.6 | eps 0.409 | loss    0.266 | w 9.84,10.10,9.45 | 374s
+[dino_abl_pretrainedA] ep  110 | steps   6204/20000 | score  186 | ma20  222.9 | eps 0.345 | loss    0.459 | w 9.84,10.05,9.41 | 424s
+[dino_abl_pretrainedA] ep  120 | steps   6877/20000 | score  190 | ma20  252.6 | eps 0.274 | loss    0.677 | w 9.91,10.03,9.28 | 486s
+[dino_abl_pretrainedA] ep  130 | steps   7582/20000 | score  188 | ma20  272.9 | eps 0.200 | loss    0.522 | w 9.94,9.95,9.22 | 549s
+[dino_abl_pretrainedA] ep  140 | steps   8259/20000 | score  383 | ma20  274.1 | eps 0.128 | loss    0.617 | w 10.00,9.83,9.13 | 608s
+[dino_abl_pretrainedA] ep  150 | steps   9156/20000 | score  185 | ma20  312.4 | eps 0.050 | loss    0.414 | w 10.16,9.78,9.28 | 693s
+[dino_abl_pretrainedA] ep  160 | steps   9935/20000 | score  184 | ma20  332.6 | eps 0.050 | loss    0.377 | w 10.13,9.72,9.25 | 774s
+[dino_abl_pretrainedA] ep  170 | steps  10632/20000 | score  374 | ma20  292.4 | eps 0.050 | loss    0.333 | w 10.09,9.56,9.25 | 841s
+[dino_abl_pretrainedA] ep  180 | steps  11358/20000 | score  288 | ma20  281.9 | eps 0.050 | loss    0.404 | w 10.06,9.55,9.33 | 913s
+[dino_abl_pretrainedA] ep  190 | steps  12094/20000 | score  332 | ma20  289.8 | eps 0.050 | loss    0.391 | w 10.23,9.44,9.42 | 984s
+[dino_abl_pretrainedA] ep  200 | steps  12669/20000 | score  185 | ma20  259.4 | eps 0.050 | loss    0.663 | w 10.43,9.55,9.56 | 1037s
+[dino_abl_pretrainedA] ep  210 | steps  13369/20000 | score  331 | ma20  252.2 | eps 0.050 | loss    0.470 | w 10.32,9.45,9.54 | 1100s
+[dino_abl_pretrainedA] ep  220 | steps  14155/20000 | score  608 | ma20  294.6 | eps 0.050 | loss    0.508 | w 10.34,9.39,9.61 | 1176s
+[dino_abl_pretrainedA] ep  230 | steps  14896/20000 | score  186 | ma20  302.5 | eps 0.050 | loss    0.633 | w 10.22,9.38,9.77 | 1253s
+[dino_abl_pretrainedA] ep  240 | steps  15514/20000 | score  189 | ma20  268.7 | eps 0.050 | loss    0.416 | w 10.40,9.28,9.85 | 1313s
+[dino_abl_pretrainedA] ep  250 | steps  16206/20000 | score  188 | ma20  258.8 | eps 0.050 | loss    0.506 | w 10.44,9.29,9.72 | 1378s
+[dino_abl_pretrainedA] ep  260 | steps  16760/20000 | score  185 | ma20  245.9 | eps 0.050 | loss    0.386 | w 10.29,9.28,9.73 | 1431s
+[dino_abl_pretrainedA] ep  270 | steps  17281/20000 | score  185 | ma20  212.3 | eps 0.050 | loss    0.779 | w 10.22,9.28,9.70 | 1481s
+[dino_abl_pretrainedA] ep  280 | steps  17814/20000 | score  186 | ma20  208.7 | eps 0.050 | loss    0.332 | w 10.37,9.26,9.72 | 1532s
+[dino_abl_pretrainedA] ep  290 | steps  18432/20000 | score  188 | ma20  228.0 | eps 0.050 | loss    0.347 | w 10.29,9.30,9.81 | 1589s
+[dino_abl_pretrainedA] ep  300 | steps  18981/20000 | score  237 | ma20  230.8 | eps 0.050 | loss    0.581 | w 10.29,9.19,9.81 | 1640s
+[dino_abl_pretrainedA] ep  310 | steps  19487/20000 | score  188 | ma20  208.6 | eps 0.050 | loss    0.328 | w 10.00,9.31,9.88 | 1688s
+[dino_abl_pretrainedA] ep  320 | steps  20021/20000 | score  190 | ma20  205.7 | eps 0.050 | loss    0.306 | w 9.87,9.29,9.79 | 1738s
+[dino_abl_pretrainedA] EVAL(best) mean 229.8 median 211.5 best 368 (min 185)
+[dino_abl_pretrainedA] saved checkpoint -> C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_abl_pretrainedA.pt
+[dino_abl_pretrainedA] logs: C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_abl_pretrainedA.csv (per-episode) | C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_abl_pretrainedA.log (console)

@@ -154,7 +154,7 @@ class DinoQFunction(QFunction):
     def __init__(self, n_qubits: int = 6, n_actions: int = 3, n_layers: int = 5,
                  reuploading: bool = True, encoder: str = "trainable_cnn",
                  observable: str = "zz", hidden: int = 128, pretrained_backbone: str = "mobilenet_v3_small",
-                 head: str = "vqc", lr: dict | None = None, w_init: float = 1.0,
+                 head: str = "vqc", entangler: str = "cx", lr: dict | None = None, w_init: float = 1.0,
                  lam_init: float = 1.0, seed: int | None = None):
         super().__init__()
         self.head_kind = head                    # "vqc" (quantum) | "classical" (diagnostic Linear head)
@@ -162,6 +162,7 @@ class DinoQFunction(QFunction):
         self.n_actions = int(n_actions)
         self.n_layers = int(n_layers)
         self.reuploading = bool(reuploading)
+        self.entangler = entangler
         self.obs_dim = (4, 84, 84)               # image obs (informational; trainer stays agnostic)
         self.encoder_kind = encoder
         self.observable_kind = observable
@@ -184,6 +185,8 @@ class DinoQFunction(QFunction):
         if head == "vqc":
             # --- the ONE circuit, on torch_sv (exact-autograd statevector) ---
             self.circuit, input_params, weight_params = build_circuit(self.n_qubits, n_layers, reuploading)
+            if entangler != "cx":                # ablation hook: swap the CNOT ring for CZ / no entangler
+                self.circuit = _swap_entangler(self.circuit, entangler)
             if observable == "zz":
                 self.observables = _disjoint_zz(self.n_qubits, self.n_actions)
             elif observable == "z":

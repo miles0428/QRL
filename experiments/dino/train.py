@@ -57,14 +57,16 @@ def default_config() -> dict:
     )
 
 
-def evaluate(model, n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2000) -> dict:
+def evaluate(model, n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2000,
+             bird_prob: float | None = None, bird_start_frame: int | None = None) -> dict:
     """Greedy (epsilon=0) eval over fixed seeds → score stats (mean/median/best + list)."""
     was_training = model.training
     model.eval()
     scores = []
     with torch.no_grad():
         for i in range(n_episodes):
-            env = make_dino_env(max_steps=max_steps, seed=seed + i)
+            env = make_dino_env(max_steps=max_steps, seed=seed + i,
+                                bird_prob=bird_prob, bird_start_frame=bird_start_frame)
             obs, info = env.reset(seed=seed + i)
             done = False
             while not done:
@@ -80,11 +82,13 @@ def evaluate(model, n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2
             "best": float(s.max()), "min": float(s.min()), "scores": scores}
 
 
-def random_baseline(n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2000) -> dict:
+def random_baseline(n_episodes: int = 20, seed: int = 10_000, max_steps: int = 2000,
+                    bird_prob: float | None = None, bird_start_frame: int | None = None) -> dict:
     rng = np.random.default_rng(seed)
     scores = []
     for i in range(n_episodes):
-        env = make_dino_env(max_steps=max_steps, seed=seed + i)
+        env = make_dino_env(max_steps=max_steps, seed=seed + i,
+                            bird_prob=bird_prob, bird_start_frame=bird_start_frame)
         obs, info = env.reset(seed=seed + i)
         done = False
         while not done:
@@ -109,15 +113,16 @@ def _save(model, ckpt_path, ctor, seed, ev, pc, cfg):
 
 
 def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "zz",
-          n_layers: int = 3, head: str = "vqc", seed: int = 0, name: str = "dino",
-          w_init: float = 10.0, lam_init: float = 1.0, cfg: dict | None = None, log=print) -> dict:
+          n_layers: int = 3, head: str = "vqc", entangler: str = "cx", seed: int = 0, name: str = "dino",
+          w_init: float = 10.0, lam_init: float = 1.0, cfg: dict | None = None, log=print,
+          bird_prob: float | None = None, bird_start_frame: int | None = None) -> dict:
     cfg = {**default_config(), **(cfg or {})}
     os.makedirs(RESULTS_DIR, exist_ok=True)
     csv_path = os.path.join(RESULTS_DIR, f"{name}.csv")
     ckpt_path = os.path.join(RESULTS_DIR, f"{name}.pt")
     log_path = os.path.join(RESULTS_DIR, f"{name}.log")
     ctor = dict(n_qubits=n_qubits, n_actions=3, n_layers=n_layers, encoder=encoder,
-                observable=observable, head=head)
+                observable=observable, head=head, entangler=entangler)
 
     # tee every console line into a persistent results/{name}.log (a permanent training record)
     _logf = open(log_path, "w", encoding="utf-8")
@@ -132,7 +137,8 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
     rng = make_rng(seed)
 
     model = DinoQFunction(n_qubits=n_qubits, n_actions=3, n_layers=n_layers, encoder=encoder,
-                          observable=observable, head=head, w_init=w_init, lam_init=lam_init, seed=seed)
+                          observable=observable, head=head, entangler=entangler,
+                          w_init=w_init, lam_init=lam_init, seed=seed)
     model.train()
     pc = model.param_counts()
     log(f"[{name}] encoder={encoder} obs={observable} qubits={n_qubits} layers={n_layers} | "
@@ -147,7 +153,8 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
     optimizer = torch.optim.Adam(model.param_groups())
     buffer = ImageReplayBuffer(cfg["replay_capacity"], (4, 84, 84), rng)
 
-    env = make_dino_env(max_steps=cfg["max_steps"], seed=seed)
+    env = make_dino_env(max_steps=cfg["max_steps"], seed=seed,
+                        bird_prob=bird_prob, bird_start_frame=bird_start_frame)
 
     columns = ["episode", "env_steps", "score", "ma20", "epsilon", "mean_loss",
                "grad_steps", "wall_clock_s", "w0", "w1", "w2", "lam_mean"]
@@ -218,7 +225,8 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
 
     # restore best weights before final eval + checkpoint (DQN forgets its peak)
     model.load_state_dict(best_state)
-    ev = evaluate(model, n_episodes=20, max_steps=cfg["max_steps"])
+    ev = evaluate(model, n_episodes=20, max_steps=cfg["max_steps"],
+                  bird_prob=bird_prob, bird_start_frame=bird_start_frame)
     log(f"[{name}] EVAL(best) mean {ev['mean']:.1f} median {ev['median']:.1f} best {ev['best']:.0f} "
         f"(min {ev['min']:.0f})")
 
@@ -231,19 +239,31 @@ def train(encoder: str = "trainable_cnn", n_qubits: int = 6, observable: str = "
 
 
 def main():
+    # optional thread cap (set DINO_THREADS to run several ablations in parallel without oversubscribing)
+    _t = os.environ.get("DINO_THREADS")
+    if _t:
+        torch.set_num_threads(int(_t))
     ap = argparse.ArgumentParser(description="Train the CNN→VQC dino agent (Double-QDQN, torch_sv).")
     ap.add_argument("--encoder", default="trainable_cnn", choices=["trainable_cnn", "pretrained"])
     ap.add_argument("--n-qubits", type=int, default=6)
     ap.add_argument("--n-layers", type=int, default=3)
     ap.add_argument("--observable", default="zz", choices=["zz", "z"])
     ap.add_argument("--head", default="vqc", choices=["vqc", "classical"])
+    ap.add_argument("--entangler", default="cx", choices=["cx", "cz", "none"])
     ap.add_argument("--steps", type=int, default=30000, help="env-step budget")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--name", default="dino_b")
+    # OPT-IN difficulty: default None keeps the cacti-only behavior (BIRD_PROB=0.0 in dino_game).
+    # Pass --bird-prob >0 to enable BIRDS-REQUIRE-DUCK (jump cacti AND duck birds).
+    ap.add_argument("--bird-prob", type=float, default=None,
+                    help="opt-in: per-spawn bird probability (default None = cacti-only)")
+    ap.add_argument("--bird-start-frame", type=int, default=None,
+                    help="opt-in: first game frame birds may spawn (default None = module default)")
     args = ap.parse_args()
     res = train(encoder=args.encoder, n_qubits=args.n_qubits, n_layers=args.n_layers,
-                observable=args.observable, head=args.head, seed=args.seed, name=args.name,
-                cfg={"max_env_steps": args.steps})
+                observable=args.observable, head=args.head, entangler=args.entangler,
+                seed=args.seed, name=args.name, cfg={"max_env_steps": args.steps},
+                bird_prob=args.bird_prob, bird_start_frame=args.bird_start_frame)
     print("DONE:", {k: res[k] for k in ("name", "episodes", "env_steps")}, "eval:", res["eval"]["mean"])
 
 

@@ -1,0 +1,6 @@
+VQC head hardware study — 16 frames, 4096 shots, backend=ibm_marrakesh
+method       | action-agreement | mean|ΔQ|
+----------------------------------------------
+aer_noise    |      14/16       |  0.070
+real_raw     |      16/16       |  0.135
+real_zne     |      12/16       |  0.129

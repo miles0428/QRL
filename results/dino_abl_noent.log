@@ -1,0 +1,44 @@
+[dino_abl_noent] encoder=trainable_cnn obs=zz qubits=6 layers=3 | params: CNN(trainable) 480,294 vs VQC 36 (+lam 6, w 3) | total 480,339
+[dino_abl_noent] ep    1 | steps     46/20000 | score  182 | ma20  182.0 | eps 0.995 | loss      nan | w 10.00,10.00,10.00 | 0s
+[dino_abl_noent] ep   10 | steps    530/20000 | score  234 | ma20  209.5 | eps 0.944 | loss      nan | w 10.00,10.00,10.00 | 1s
+[dino_abl_noent] ep   20 | steps   1044/20000 | score  189 | ma20  206.1 | eps 0.890 | loss    2.125 | w 10.44,10.35,10.41 | 8s
+[dino_abl_noent] ep   30 | steps   1574/20000 | score  188 | ma20  205.9 | eps 0.834 | loss    4.388 | w 10.43,10.57,10.42 | 22s
+[dino_abl_noent] ep   40 | steps   2146/20000 | score  280 | ma20  217.8 | eps 0.774 | loss    0.811 | w 10.32,10.52,10.25 | 36s
+[dino_abl_noent] ep   50 | steps   2674/20000 | score  276 | ma20  217.3 | eps 0.718 | loss    0.864 | w 10.33,10.53,10.23 | 50s
+[dino_abl_noent] ep   60 | steps   3156/20000 | score  185 | ma20  199.2 | eps 0.667 | loss    0.741 | w 10.34,10.55,10.28 | 63s
+[dino_abl_noent] ep   70 | steps   3651/20000 | score  185 | ma20  193.2 | eps 0.615 | loss    0.610 | w 10.35,10.50,10.30 | 79s
+[dino_abl_noent] ep   80 | steps   4202/20000 | score  182 | ma20  206.9 | eps 0.557 | loss    0.502 | w 10.35,10.52,10.34 | 98s
+[dino_abl_noent] ep   90 | steps   4774/20000 | score  185 | ma20  222.2 | eps 0.496 | loss    0.495 | w 10.33,10.57,10.31 | 116s
+[dino_abl_noent] ep  100 | steps   5288/20000 | score  229 | ma20  214.9 | eps 0.442 | loss    0.788 | w 10.34,10.58,10.32 | 132s
+[dino_abl_noent] ep  110 | steps   5802/20000 | score  232 | ma20  203.1 | eps 0.388 | loss    0.574 | w 10.38,10.56,10.37 | 152s
+[dino_abl_noent] ep  120 | steps   6346/20000 | score  184 | ma20  209.0 | eps 0.330 | loss    0.449 | w 10.39,10.59,10.35 | 171s
+[dino_abl_noent] ep  130 | steps   6839/20000 | score  184 | ma20  204.7 | eps 0.278 | loss    0.380 | w 10.34,10.56,10.30 | 188s
+[dino_abl_noent] ep  140 | steps   7369/20000 | score  227 | ma20  201.8 | eps 0.222 | loss    0.758 | w 10.29,10.60,10.27 | 207s
+[dino_abl_noent] ep  150 | steps   7963/20000 | score  185 | ma20  222.1 | eps 0.160 | loss    0.625 | w 10.30,10.60,10.43 | 230s
+[dino_abl_noent] ep  160 | steps   8484/20000 | score  185 | ma20  220.3 | eps 0.105 | loss    0.584 | w 10.36,10.59,10.45 | 251s
+[dino_abl_noent] ep  170 | steps   8979/20000 | score  184 | ma20  200.4 | eps 0.052 | loss    0.616 | w 10.35,10.56,10.45 | 270s
+[dino_abl_noent] ep  180 | steps   9470/20000 | score  191 | ma20  194.4 | eps 0.050 | loss    0.930 | w 10.32,10.56,10.37 | 289s
+[dino_abl_noent] ep  190 | steps   9965/20000 | score  185 | ma20  194.6 | eps 0.050 | loss    0.476 | w 10.44,10.66,10.57 | 308s
+[dino_abl_noent] ep  200 | steps  10457/20000 | score  185 | ma20  194.8 | eps 0.050 | loss    0.547 | w 10.45,10.72,10.51 | 326s
+[dino_abl_noent] ep  210 | steps  10938/20000 | score  185 | ma20  191.8 | eps 0.050 | loss    0.543 | w 10.45,10.66,10.56 | 344s
+[dino_abl_noent] ep  220 | steps  11421/20000 | score  234 | ma20  189.9 | eps 0.050 | loss    0.560 | w 10.45,10.71,10.55 | 361s
+[dino_abl_noent] ep  230 | steps  11940/20000 | score  185 | ma20  197.6 | eps 0.050 | loss    0.676 | w 10.56,10.70,10.46 | 379s
+[dino_abl_noent] ep  240 | steps  12470/20000 | score  185 | ma20  206.8 | eps 0.050 | loss    0.674 | w 10.62,10.56,10.46 | 399s
+[dino_abl_noent] ep  250 | steps  12988/20000 | score  185 | ma20  206.6 | eps 0.050 | loss    0.728 | w 10.50,10.53,10.37 | 417s
+[dino_abl_noent] ep  260 | steps  13458/20000 | score  185 | ma20  194.7 | eps 0.050 | loss    0.706 | w 10.49,10.40,10.04 | 434s
+[dino_abl_noent] ep  270 | steps  13963/20000 | score  187 | ma20  192.4 | eps 0.050 | loss    0.179 | w 10.61,10.70,10.35 | 452s
+[dino_abl_noent] ep  280 | steps  14471/20000 | score  185 | ma20  200.1 | eps 0.050 | loss    0.706 | w 10.50,10.42,10.31 | 470s
+[dino_abl_noent] ep  290 | steps  14991/20000 | score  185 | ma20  202.7 | eps 0.050 | loss    0.228 | w 10.21,10.19,10.13 | 488s
+[dino_abl_noent] ep  300 | steps  15496/20000 | score  185 | ma20  201.9 | eps 0.050 | loss    0.583 | w 10.31,10.39,10.03 | 506s
+[dino_abl_noent] ep  310 | steps  16027/20000 | score  185 | ma20  204.2 | eps 0.050 | loss    0.332 | w 10.31,10.44,10.15 | 527s
+[dino_abl_noent] ep  320 | steps  16509/20000 | score  189 | ma20  199.8 | eps 0.050 | loss    0.217 | w 10.35,10.43,10.02 | 545s
+[dino_abl_noent] ep  330 | steps  16990/20000 | score  182 | ma20  190.1 | eps 0.050 | loss    0.577 | w 9.99,9.86,10.02 | 564s
+[dino_abl_noent] ep  340 | steps  17531/20000 | score  185 | ma20  201.8 | eps 0.050 | loss    0.498 | w 9.92,9.92,9.82 | 585s
+[dino_abl_noent] ep  350 | steps  18051/20000 | score  185 | ma20  209.6 | eps 0.050 | loss    0.310 | w 9.95,9.98,9.84 | 651s
+[dino_abl_noent] ep  360 | steps  18557/20000 | score  185 | ma20  202.7 | eps 0.050 | loss    0.264 | w 10.07,9.99,9.86 | 672s
+[dino_abl_noent] ep  370 | steps  19024/20000 | score  182 | ma20  192.1 | eps 0.050 | loss    0.195 | w 9.57,9.71,9.88 | 695s
+[dino_abl_noent] ep  380 | steps  19499/20000 | score  188 | ma20  185.9 | eps 0.050 | loss    0.642 | w 9.67,9.82,9.73 | 716s
+[dino_abl_noent] ep  390 | steps  20018/20000 | score  185 | ma20  196.2 | eps 0.050 | loss    0.570 | w 9.65,9.83,9.59 | 738s
+[dino_abl_noent] EVAL(best) mean 185.0 median 185.0 best 185 (min 185)
+[dino_abl_noent] saved checkpoint -> C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_abl_noent.pt
+[dino_abl_noent] logs: C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_abl_noent.csv (per-episode) | C:\Users\minni\Desktop\qiskit_hack\QRL\results\dino_abl_noent.log (console)

@@ -1,0 +1,10 @@
+submitting 4-frame job to ibm_marrakesh (6 queued)...
+=== VQC head on IBM QPU 'ibm_marrakesh' (4096 shots) ===
+Does the quantum decision survive real hardware / device noise?
+
+frame 0: exact [4.980000019073486, 5.03000020980835, 5.150000095367432] -> DUCK  ||  hw [4.88, 4.95, 5.12] -> DUCK  OK
+frame 1: exact [5.019999980926514, 5.059999942779541, 5.170000076293945] -> DUCK  ||  hw [4.8, 4.92, 5.17] -> DUCK  OK
+frame 2: exact [5.039999961853027, 5.079999923706055, 5.21999979019165] -> DUCK  ||  hw [5.08, 5.23, 5.25] -> DUCK  OK
+frame 3: exact [4.369999885559082, 4.099999904632568, 4.25] -> RUN   ||  hw [4.42, 4.24, 4.71] -> DUCK  flip(near-tie)
+
+same action as exact on 3/4 frames.
