@@ -1,4 +1,10 @@
-qutip
+# Runtime deps -- keep in sync with [project].dependencies in pyproject.toml.
+qutip>=5
+qutip-qip        # provides the qutip.qip.* namespace used by processor.py
 gymnasium==0.29.1
 numpy
+
+# Dev / optional extras -- mirrors [project.optional-dependencies].
 pytest
+pytest-cov
+matplotlib       # trajectory.py imports it lazily; needed for render.py output

@@ -29,13 +29,9 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 
-# Add package to path when run as a script
-sys.path.insert(0, os.path.dirname(__file__))
-
-from quantum_spin_cartpole import QuantumSpinCartPoleEnv
-from quantum_spin_cartpole.trajectory import SpinTrajectory
+from .env import QuantumSpinCartPoleEnv
+from .trajectory import SpinTrajectory
 
 
 # Action label map

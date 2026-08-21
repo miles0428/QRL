@@ -26,29 +26,22 @@ classifiers = [
 ]
 
 dependencies = [
-    "qutip",
+    "qutip>=5",
+    "qutip-qip",        # provides the qutip.qip.* namespace used by processor.py
     "gymnasium==0.29.1",
     "numpy",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-    "pytest-cov",
-]
+viz = ["matplotlib"]                      # trajectory.py imports it lazily
+dev = ["pytest", "pytest-cov", "matplotlib"]
 
 [project.urls]
-Homepage = "https://github.com/your-repo/quantum-spin-cartpole"
-Source = "https://github.com/your-repo/quantum-spin-cartpole"
-
-[project.entry-points]
-gymnasium.env = "quantum_spin_cartpole:QuantumSpinCartPoleEnv"
+Homepage = "https://github.com/miles0428/QRL"
+Source = "https://github.com/miles0428/QRL"
 
 [tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-dir]
-"" = "src"
+include = ["quantum_spin_cartpole*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

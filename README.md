@@ -14,20 +14,40 @@ the spin in the northern hemisphere and how close to the pole it holds it.
 
 ```bash
 python -m venv .venv && .venv/Scripts/activate      # Windows
-pip install qutip qutip-qip "gymnasium==0.29.1" numpy matplotlib torch qiskit pytest
-export PYTHONPATH=$PWD                              # see note below
+pip install .                                       # or: pip install -e ".[dev]"
 pytest -q                                           # 59 tests
 ```
+
+`pip install .` now installs the env package proper, so `import
+quantum_spin_cartpole` resolves from any working directory. The `scripts/`
+runners still expect the repo root on the path — for those, keep using
+`export PYTHONPATH=$PWD` and install the agent-side extras
+(`torch`, `qiskit`) yourself; they are not dependencies of the env package.
+
+Using it as a registered Gymnasium env:
+
+```python
+import quantum_spin_cartpole          # required -- this import performs the registration
+import gymnasium as gym
+
+env = gym.make("QuantumSpinCartPole-v0")   # -> (6,) Discrete(5)
+```
+
+The explicit import is not optional. Gymnasium dropped entry-point-based env
+discovery in 0.29, the version this package pins, so `register()` runs from
+`quantum_spin_cartpole/__init__.py` at import time and `gym.make` cannot see the
+id before the package has been imported once.
 
 Two setup traps worth knowing:
 
 - **qutip 5 *and* qutip-qip are both required.** `processor.py` calls
   `ModelProcessor(num_qubits=1)`; on qutip 4.7 `qutip.qip` resolves to the
   in-tree legacy class whose signature is `N=`, and `env._expectation` calls
-  `.real` on a product that qutip 4 returns as a `Qobj`.
-- **`pip install -e .` does not work.** `pyproject.toml` declares
-  `packages.find where = ["src"]` but the package sits at the repository root.
-  Set `PYTHONPATH` instead.
+  `.real` on a product that qutip 4 returns as a `Qobj`. `qutip-qip` is now a
+  declared dependency, so a plain `pip install .` gets it.
+- **The `gymnasium==0.29.1` pin is exact on purpose.** The rest of the repo
+  pins `gymnasium==1.3.0`; the 0.29 -> 1.x transition changed the env API and
+  the 59 tests here were written against 0.29.1.
 
 ## The game
 
