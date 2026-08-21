@@ -22,6 +22,7 @@ from .. import plots
 from ..config import load_config
 from ..models.mlp import MLPQFunction
 from ..models.vqc import VQCQFunction
+from . import announce_paths
 
 
 def try_load_results(config_name: str, seeds: list[int], results_dir: str):
@@ -40,6 +41,7 @@ def main():
     parser.add_argument("--results-dir", type=str, default="results")
     parser.add_argument("--figures-dir", type=str, default="figures")
     args = parser.parse_args()
+    announce_paths(results=args.results_dir, figures=args.figures_dir)
 
     qdqn_config = load_config(args.qdqn_config)
     mlp_config = load_config(args.mlp_config)

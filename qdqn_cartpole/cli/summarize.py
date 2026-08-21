@@ -17,8 +17,8 @@ solve from a lucky window better than the mean does -- 404.6 +- 190.8 is a
 policy swinging between 500 and near zero, not a policy at 404.
 
 Usage:
-    python scripts/summarize.py vec10
-    python scripts/summarize.py vec10 --vs pl10
+    qdqn-summarize vec10
+    qdqn-summarize vec10 --vs pl10
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ import re
 
 import numpy as np
 import pandas as pd
+from . import announce_paths
 
 
 def load_tag(tag: str, results_dir: str = "results", config: str = "qdqn") -> list[dict]:
@@ -102,6 +103,7 @@ def main() -> None:
     p.add_argument("--results-dir", default="results")
     p.add_argument("--config", default="qdqn")
     args = p.parse_args()
+    announce_paths(results=args.results_dir)
 
     a = summarize(args.tag, load_tag(args.tag, args.results_dir, args.config))
     if not args.vs:

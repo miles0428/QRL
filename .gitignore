@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 *.log
 .claude/worktrees/
+*.egg-info/
+build/
+dist/

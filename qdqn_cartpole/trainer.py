@@ -6,7 +6,7 @@ It only ever touches `model` through the generic nn.Module interface
 attributes that MAY exist (`w`, `lam`) purely for CSV logging -- it never
 checks *what kind* of model it was handed. The optimizer (with however many
 parameter groups / learning rates the model calls for) is built by the
-caller (scripts/train.py) and passed in already-configured; this is what
+caller (qdqn_cartpole/cli/train.py) and passed in already-configured; this is what
 lets a 3-parameter-group VQC and a single-group MLP share this exact loop.
 """
 
@@ -335,7 +335,7 @@ def train(
     Given the same seed, this function reproduces the same sequence of env
     resets, action-selection coin flips, and replay-buffer samples. For a
     byte-identical CSV end to end, the caller must *also* seed model
-    construction with the same seed (see scripts/train.py) -- this function's
+    construction with the same seed (see qdqn_cartpole/cli/train.py) -- this function's
     own set_seed() call happens after `model` already exists, so it cannot
     retroactively make the model's initial weights reproducible.
 
@@ -524,7 +524,7 @@ def train(
         # "solved" here is the TRAINING criterion: avg reward over the last
         # `solve_window` *exploring* episodes. It understates the agent, because
         # those episodes are played with epsilon > 0. The headline claim should
-        # come from the final greedy evaluation in scripts/train.py instead.
+        # come from the final greedy evaluation in qdqn_cartpole/cli/train.py instead.
         "solved": solved_at_episode is not None,
         "episodes_to_solve": solved_at_episode,
         "env_steps_to_solve": solved_at_env_steps,

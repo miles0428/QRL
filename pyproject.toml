@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qdqn-cartpole"
+version = "0.1.0"
+description = "Quantum DQN on CartPole-v1: a variational-circuit Q-function against an MLP baseline"
+readme = "README.md"
+requires-python = ">=3.10"
+# Left for the repo owner to fill in -- uncomment and complete.
+# An invalid placeholder here is not harmless: setuptools rejects a
+# non-idn-email at build time and `pip install .` fails outright.
+# authors = [
+#     { name = "", email = "" },
+# ]
+keywords = ["quantum", "reinforcement-learning", "dqn", "qiskit", "cartpole"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+# Pins copied verbatim from requirements.txt -- do not re-pin or upgrade here.
+# pygame is not superfluous: gymnasium's CartPole render_mode="rgb_array"
+# needs it, and that is what produces the rollout GIF figure.
+dependencies = [
+    "torch==2.13.0",
+    "qiskit==2.5.1",
+    "qiskit-aer==0.17.2",
+    "qiskit-machine-learning==0.9.0",
+    "gymnasium==1.3.0",
+    "numpy==2.4.6",
+    "matplotlib==3.11.1",
+    "pandas==3.0.5",
+    "pyyaml==6.0.3",
+    "pygame==2.6.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/miles0428/QRL"
+Source = "https://github.com/miles0428/QRL"
+
+[project.scripts]
+qdqn-train            = "qdqn_cartpole.cli.train:main"
+qdqn-sweep            = "qdqn_cartpole.cli.sweep_seeds:main"
+qdqn-figures          = "qdqn_cartpole.cli.make_figures:main"
+qdqn-summarize        = "qdqn_cartpole.cli.summarize:main"
+qdqn-benchmark        = "qdqn_cartpole.cli.benchmark_backends:main"
+qdqn-benchmark-report = "qdqn_cartpole.cli.benchmark_report:main"
+qdqn-verify-backend   = "qdqn_cartpole.cli.verify_backend_equivalence:main"
+
+# tfq/ is deliberately excluded: it has no __init__.py, imports nothing from
+# this package, and pins an incompatible TensorFlow Quantum stack. Adding it
+# here would make the wheel uninstallable.
+[tool.setuptools.packages.find]
+include = ["qdqn_cartpole*"]

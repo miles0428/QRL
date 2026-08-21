@@ -13,14 +13,14 @@ pins qiskit 1.x while qiskit-machine-learning here needs 2.x. Arms that cannot
 be imported are skipped and reported as such, so this is run once per
 environment and the results merged:
 
-    <qtm env>/python  scripts/benchmark_backends.py --out results/backends_qtm.json
-    <ml  env>/python  scripts/benchmark_backends.py --out results/backends_ml.json
+    <qtm env>/python -m qdqn_cartpole.cli.benchmark_backends --out results/backends_qtm.json
+    <ml  env>/python -m qdqn_cartpole.cli.benchmark_backends --out results/backends_ml.json
 
 Run it on an otherwise idle machine. A 5-seed sweep in the background inflates
 every arm, and unevenly.
 
 Usage:
-    python scripts/benchmark_backends.py --steps 100 --batch 16
+    qdqn-benchmark --steps 100 --batch 16
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ import time
 from pathlib import Path
 
 import torch
+from . import announce_paths
 
 # (label, backend, gradient_method, steps_override)
 # param_shift gets far fewer steps: it costs 2 circuit evaluations per parameter
@@ -101,6 +102,7 @@ def main() -> None:
     parser.add_argument("--out", default=None, help="write results as JSON here")
     parser.add_argument("--only", nargs="*", default=None, help="restrict to these backend names")
     args = parser.parse_args()
+    announce_paths(out=args.out if args.out else ".")
 
     print(f"python {sys.version.split()[0]} | {platform.platform()}")
     print(f"torch threads: {torch.get_num_threads()} | batch {args.batch}\n")

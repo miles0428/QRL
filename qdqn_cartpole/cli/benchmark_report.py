@@ -18,8 +18,8 @@ would drift upward for free as the slower seeds drop out.
 Runs on partial results by design; safe to call while a sweep is going.
 
 Usage:
-    python scripts/benchmark_report.py
-    python scripts/benchmark_report.py --results-dir results --baseline-ref 3da70a2
+    qdqn-benchmark-report
+    qdqn-benchmark-report --results-dir results --baseline-ref 3da70a2
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from . import announce_paths
 
 SOLVE_THRESHOLD = 475.0
 SOLVE_WINDOW = 100
@@ -224,6 +225,7 @@ def main() -> None:
     )
     parser.add_argument("--every", type=int, default=250, help="episode stride in the curve table")
     args = parser.parse_args()
+    announce_paths(results=args.results_dir)
 
     rdir = Path(args.results_dir)
 
@@ -297,7 +299,7 @@ def main() -> None:
             print(
                 "\nAlso not matched conditions in the other direction: the v3 seeds above ran 5-up\n"
                 "in parallel, so each is slightly slower than it would be alone (0.023 s solo).\n"
-                "For a clean single-protocol comparison run scripts/benchmark_backends.py."
+                "For a clean single-protocol comparison run qdqn-benchmark."
             )
 
     print("\n" + "=" * 78)

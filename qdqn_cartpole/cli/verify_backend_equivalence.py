@@ -24,7 +24,7 @@ Two checks, both against that same qiskit-only reference:
             with the backend's differentiation, so agreement is real evidence.
 
 Usage:
-    python scripts/verify_backend_equivalence.py --backend torch_sv --check-grad
+    qdqn-verify-backend --backend torch_sv --check-grad
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ from qiskit.quantum_info import SparsePauliOp, Statevector
 
 from ..models.base import normalize_observation
 from ..models.vqc import VQCQFunction, build_circuit
+from . import announce_paths
 
 
 def reference_expectations(
@@ -183,6 +184,7 @@ def main() -> int:
         "not the backend.",
     )
     args = parser.parse_args()
+    announce_paths(cwd=".")
 
     method = args.gradient_method or ("param_shift" if args.backend == "qiskit_ml" else "adjoint")
 

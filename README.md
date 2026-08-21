@@ -13,12 +13,33 @@ Control"* -- Fundamental deliverable.
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
+pip install -e .           # or: pip install -r requirements.txt
 ```
+
+`pip install .` installs the package as `qdqn_cartpole` and puts seven console
+scripts on your PATH. **Run them from the repo root.** Every script addresses
+`results/` and `figures/` relative to the current working directory, so invoking
+one from elsewhere writes into a *new* `results/` there and `qdqn-summarize`
+then reports no runs against a repo full of data. Each command prints its
+resolved paths to stderr on startup, so a wrong cwd shows up in the first line
+of the log rather than after the run.
+
+| console script | module |
+|---|---|
+| `qdqn-train` | `qdqn_cartpole.cli.train` |
+| `qdqn-sweep` | `qdqn_cartpole.cli.sweep_seeds` |
+| `qdqn-figures` | `qdqn_cartpole.cli.make_figures` |
+| `qdqn-summarize` | `qdqn_cartpole.cli.summarize` |
+| `qdqn-benchmark` | `qdqn_cartpole.cli.benchmark_backends` |
+| `qdqn-benchmark-report` | `qdqn_cartpole.cli.benchmark_report` |
+| `qdqn-verify-backend` | `qdqn_cartpole.cli.verify_backend_equivalence` |
+
+`tfq/` is deliberately *not* part of the package: it pins an incompatible
+TensorFlow Quantum stack and is installed separately via `tfq/install_tfq.sh`.
 
 Developed and tested against the versions pinned in `requirements.txt` (Python 3.11.15,
 `qiskit==2.5.1`, `qiskit-aer==0.17.2`, `qiskit-machine-learning==0.9.0`, `torch==2.13.0`,
-`gymnasium==1.3.0`). Every run of `scripts/train.py` and `scripts/sweep_seeds.py` prints
+`gymnasium==1.3.0`). Every run of `qdqn_cartpole/cli/train.py` and `qdqn_cartpole/cli/sweep_seeds.py` prints
 the resolved versions of all dependencies at the top of its log.
 
 ## Repo layout
@@ -28,7 +49,7 @@ qdqn-cartpole/
 ├── configs/
 │   ├── qdqn.yaml           # quantum agent hyperparameters
 │   └── mlp_baseline.yaml   # classical control hyperparameters
-├── src/
+├── qdqn_cartpole/
 │   ├── models/
 │   │   ├── base.py         # QFunction ABC + shared observation normalization
 │   │   ├── vqc.py          # VQC Q-function (TorchConnector)
@@ -37,24 +58,25 @@ qdqn-cartpole/
 │   ├── trainer.py          # model-agnostic DQN loop -- does NOT import qiskit
 │   ├── evaluate.py         # greedy rollouts + solve criterion
 │   ├── seeds.py            # reproducibility
-│   └── plots.py            # all 8 figure-generation functions
-├── scripts/
-│   ├── train.py             # train one (config, seed)
-│   ├── sweep_seeds.py       # train across multiple seeds, with a performance gate
-│   └── make_figures.py      # generate all figures from results/ + checkpoints
+│   ├── plots.py            # all 8 figure-generation functions
+│   └── cli/                # the seven console-script entry points
+│       ├── train.py         # train one (config, seed)
+│       ├── sweep_seeds.py   # train across multiple seeds, with a performance gate
+│       └── make_figures.py  # generate all figures from results/ + checkpoints
+├── tfq/                     # TensorFlow Quantum arm -- separate env, not packaged
 ├── results/                 # results/{config}_{seed}.csv, results/{config}_{seed}_final.pt
 └── figures/                 # 8 required figures, PNG (150dpi) + PDF
 ```
 
-**Hard architectural rule**: `src/trainer.py` never imports `qiskit`. It only touches
+**Hard architectural rule**: `qdqn_cartpole/trainer.py` never imports `qiskit`. It only touches
 `model` through the generic `nn.Module` interface (`forward()`, `.parameters()`,
 `.state_dict()`) plus optional `getattr(model, "w"/"lam", None)` lookups for CSV logging.
-Swapping the model for a different ansatz means writing a new `src/models/*.py` and
+Swapping the model for a different ansatz means writing a new `qdqn_cartpole/models/*.py` and
 pointing a config at it -- `trainer.py` and `evaluate.py` don't change.
 
 ## Model spec
 
-**Circuit** (`src/models/vqc.py`): 4 qubits, `n_layers` variational layers (default 5).
+**Circuit** (`qdqn_cartpole/models/vqc.py`): 4 qubits, `n_layers` variational layers (default 5).
 Each layer: `RY(x[q])` encoding on every qubit (only before layer 0, unless
 `reuploading: true` in the config, in which case it repeats every layer -- data
 re-uploading, Pérez-Salinas et al. 2020), then trainable `RY(theta)`, `RZ(theta)` on
@@ -80,22 +102,22 @@ two expectation values in `[-1, 1]`, one per CartPole action.
    so `lam`'s gradient (which only reaches `lam` by backpropagating through the QNN's
    input) is silently `None`/zero even though the forward pass looks completely normal.
    Fixed by passing `input_gradients=True` when constructing `EstimatorQNN` in
-   `src/models/vqc.py`. This is exactly the class of bug the brief's smoke test is
+   `qdqn_cartpole/models/vqc.py`. This is exactly the class of bug the brief's smoke test is
    designed to catch, and it did.
 
-**Normalization** (`src/models/base.py::normalize_observation`, called inside every
+**Normalization** (`qdqn_cartpole/models/base.py::normalize_observation`, called inside every
 model's `forward()` -- the replay buffer stores raw observations): cart position and
 pole angle are divided by their termination bounds (2.4 and 0.2095 rad); both
 velocities are formally unbounded, so they go through `arctan` instead.
 
-**Classical baseline** (`src/models/mlp.py`): a 4 -> hidden -> 2 MLP. The VQC's default
+**Classical baseline** (`qdqn_cartpole/models/mlp.py`): a 4 -> hidden -> 2 MLP. The VQC's default
 config (4 qubits, `n_layers=5`) has 40 circuit weights + 4 `lam` + 2 `w` = **46**
 trainable parameters. An MLP with bias has `7*hidden + 2` parameters; `hidden=6` gives
 **44** (4.3% off, well within the required ±20%). A 2×128 MLP would have ~17k parameters
 -- comparing that against the VQC's 46 and calling it "quantum parameter-efficiency"
 would not be a real result, which is why both models here are deliberately tiny.
 
-## Trainer spec (`src/trainer.py`)
+## Trainer spec (`qdqn_cartpole/trainer.py`)
 
 - Replay buffer, capacity 10,000, `(s, a, r, s', done)`, uniform sampling, batch size 16
   (small on purpose -- every forward pass is a circuit simulation for the VQC).
@@ -109,15 +131,15 @@ would not be a real result, which is why both models here are deliberately tiny.
   env steps, episode reward, 100-episode moving average, epsilon, mean TD loss,
   wall-clock seconds, cumulative gradient steps, and the current values of `w` and `lam`
   (empty for models without those attributes, e.g. the MLP).
-- **Reproducibility**: `src/seeds.py::set_seed()` seeds python/numpy/torch;
+- **Reproducibility**: `qdqn_cartpole/seeds.py::set_seed()` seeds python/numpy/torch;
   `env.reset(seed=seed + episode)` seeds the environment. Verified: given the same seed
-  and a model whose construction was seeded the same way (see `scripts/train.py`'s
+  and a model whose construction was seeded the same way (see `qdqn_cartpole/cli/train.py`'s
   ordering -- `set_seed()` runs *before* the model is constructed), every CSV column is
   byte-identical across two independent runs except `wall_clock_s`, which is inherently
   non-deterministic wall-clock timing and expected to differ.
 
 Optimizer construction (three parameter groups, three learning rates for the VQC) lives
-in `scripts/train.py`, not `trainer.py` -- that's the boundary that keeps the hard
+in `qdqn_cartpole/cli/train.py`, not `trainer.py` -- that's the boundary that keeps the hard
 architectural rule (`trainer.py` never imports `qiskit`) satisfiable: the optimizer is
 built by whoever knows what kind of model this is, then handed to `trainer.train()`
 already configured.
@@ -134,17 +156,17 @@ optimizer = torch.optim.Adam([
 
 ```bash
 # Train one (config, seed):
-python scripts/train.py --config configs/mlp_baseline.yaml --seed 0
-python scripts/train.py --config configs/qdqn.yaml --seed 0
+qdqn-train --config configs/mlp_baseline.yaml --seed 0
+qdqn-train --config configs/qdqn.yaml --seed 0
 
 # Sweep multiple seeds (5 minimum, 10 if runtime allows):
-python scripts/sweep_seeds.py --config configs/mlp_baseline.yaml --seeds 0 1 2 3 4
+qdqn-sweep --config configs/mlp_baseline.yaml --seeds 0 1 2 3 4
 
 # Final greedy evaluation (epsilon=0, 100 episodes) of a trained model:
-python -m src.evaluate  # see src/evaluate.py::evaluate() for programmatic use
+python -m qdqn_cartpole.evaluate  # see qdqn_cartpole/evaluate.py::evaluate() for programmatic use
 
 # Generate all 8 figures from whatever results/ + checkpoints exist:
-python scripts/make_figures.py
+qdqn-figures
 ```
 
 ### Performance warning -- read this before running the full QDQN sweep
@@ -152,13 +174,13 @@ python scripts/make_figures.py
 Training is dominated by circuit simulation, and gradients go through
 parameter-shift (2 circuit evaluations per trainable weight -- 80 extra evaluations per
 gradient step for the default 40-weight, 5-layer circuit, on top of the forward passes).
-**`scripts/sweep_seeds.py` times a real batch of gradient steps before launching anything**
+**`qdqn_cartpole/cli/sweep_seeds.py` times a real batch of gradient steps before launching anything**
 and refuses to launch the full multi-seed sweep if the projected wall-clock exceeds ~6
 hours, printing the numbers instead of running blind. Measured on this machine:
 
 | | |
 |---|---|
-| seconds per gradient step (VQC, batch=16, `n_layers=5`, 40 weights) -- measured, `scripts/sweep_seeds.py --config configs/qdqn.yaml --seeds 0 1 2 3 4` | 21.6s |
+| seconds per gradient step (VQC, batch=16, `n_layers=5`, 40 weights) -- measured, `qdqn-sweep --config configs/qdqn.yaml --seeds 0 1 2 3 4` | 21.6s |
 | projected wall-clock, 5 seeds × 2000 episodes, worst case | **~30,000 hours** (~3.4 years) |
 | projected wall-clock, 5 seeds × 2000 episodes, optimistic heuristic (~150 env steps/episode avg) | **~9,000 hours** (~1 year) |
 
@@ -167,7 +189,7 @@ number above is from the real `sweep_seeds.py` timing probe -- an actual env-int
 not a synthetic batch -- and is the one that matters.)
 
 **This is not runnable as configured, on this hardware, in hackathon time.** Both
-estimates are printed by `scripts/sweep_seeds.py --config configs/qdqn.yaml` itself
+estimates are printed by `qdqn-sweep --config configs/qdqn.yaml` itself
 (along with the exact measured per-step cost from a real timing probe), and the script
 stops there rather than launching the sweep -- per the project brief's explicit
 instruction to stop and report rather than run blind. The classical MLP baseline has no
@@ -187,19 +209,19 @@ Options, in order of how much they change the science:
   simulation (which should take microseconds); a batched/vectorized gradient primitive
   would likely help far more than any of the above and hasn't been investigated yet.
 
-`scripts/sweep_seeds.py --force` overrides the stop once you've seen the projection and
+`qdqn-sweep --force` overrides the stop once you've seen the projection and
 decided how to proceed.
 
 ## Evaluation protocol
 
 - Solve criterion: mean reward ≥ 475 over 100 consecutive episodes (used identically in
-  training's early-stop check and in `src/evaluate.py`'s final greedy evaluation).
+  training's early-stop check and in `qdqn_cartpole/evaluate.py`'s final greedy evaluation).
 - Report **episodes-to-solve** and **env-steps-to-solve**, both logged in the training
   summary and derivable from any `results/*.csv`.
-- Aggregate across seeds with **median and IQR**, not mean ± std (`src/plots.py`).
-- Final evaluation: 100 greedy (`epsilon=0`) episodes via `src/evaluate.py::evaluate()`.
+- Aggregate across seeds with **median and IQR**, not mean ± std (`qdqn_cartpole/plots.py`).
+- Final evaluation: 100 greedy (`epsilon=0`) episodes via `qdqn_cartpole/evaluate.py::evaluate()`.
 
-## Figures (`figures/`, PNG 150dpi + PDF, generated by `scripts/make_figures.py`)
+## Figures (`figures/`, PNG 150dpi + PDF, generated by `qdqn_cartpole/cli/make_figures.py`)
 
 1. Learning curves -- reward vs. episode, median across seeds, IQR shaded, both models,
    horizontal line at 475.
@@ -224,7 +246,7 @@ partial results while a sweep is still in progress.
 
 ## `evaluate_finite_shot` hook
 
-`src/models/vqc.py::evaluate_finite_shot(model, shots)` swaps a trained VQC's estimator
+`qdqn_cartpole/models/vqc.py::evaluate_finite_shot(model, shots)` swaps a trained VQC's estimator
 for a shot-based `qiskit_aer.primitives.EstimatorV2` (shots converted to the equivalent
 `default_precision = 1/sqrt(shots)`, since that's the option this estimator actually
 exposes) and returns a new model with the same trained weights, ready for finite-shot
@@ -236,12 +258,12 @@ is reserved for this evaluation hook; training always uses the exact
 ## Build order (as actually followed)
 
 1. Scaffold, `requirements.txt`, confirm imports, print resolved versions. ✅
-2. `src/models/vqc.py` alone, smoke test: random batch of 8 states in, assert output
+2. `qdqn_cartpole/models/vqc.py` alone, smoke test: random batch of 8 states in, assert output
    shape `[8, 2]`, assert gradients are non-`None` and non-zero for **all three**
    parameter groups (`lam`, `vqc`, `w`). This is exactly what caught the
    `input_gradients=False` bug described above -- the smoke test failed on the first
    run, with `lam.grad` dead, before the fix. ✅
-3. `src/replay.py` + `src/trainer.py` + `src/models/mlp.py`. Verified the trainer
+3. `qdqn_cartpole/replay.py` + `qdqn_cartpole/trainer.py` + `qdqn_cartpole/models/mlp.py`. Verified the trainer
    actually trains and logs correctly with the MLP first (fast, so this validated the
    loop, CSV reproducibility, and target-network/epsilon mechanics without waiting on
    quantum simulation). ✅
@@ -250,7 +272,7 @@ is reserved for this evaluation hook; training always uses the exact
    the required 100-gradient-step timing probe (measured on a 20-step sample, ~14.5s per
    step) and stopped before launching the full 5-seed sweep, per the performance
    warning above. ✅
-5. `scripts/sweep_seeds.py`, `src/plots.py`, `scripts/make_figures.py` -- built and
+5. `qdqn_cartpole/cli/sweep_seeds.py`, `qdqn_cartpole/plots.py`, `qdqn_cartpole/cli/make_figures.py` -- built and
    exercised against the MLP's real (fast) multi-seed run; the QDQN-side figures that
    need a completed sweep (full learning curves, parameter-count-vs-performance for the
    VQC across seeds) are wired up and will populate once a QDQN sweep is actually run at

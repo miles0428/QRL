@@ -31,7 +31,7 @@ internal to this module.
                Qiskit's own SparsePauliOp.to_matrix() -- evaluated as torch
                tensor algebra, so autograd produces exact gradients in one
                reverse pass. 28 ms/grad step here vs 2.16 s on the pre-v3 path.
-               See src/models/torch_statevector.py.
+               See qdqn_cartpole/models/torch_statevector.py.
   "qtm"        qiskit-torch-module (Meyer et al. 2024, arXiv:2404.06314).
                Batch-parallel adjoint gradients. Was the intended v3 training
                path; its parallelism is multiprocessing.Process fan-out, which
@@ -285,10 +285,10 @@ class _TorchStatevectorBackend(nn.Module):
     only *how* the expectation values are computed: 16 complex amplitudes
     propagated through torch ops, differentiated in one reverse pass, instead of
     a circuit dispatched through the primitive layer once per parameter (or per
-    batch entry). See src/models/torch_statevector.py for why, with numbers.
+    batch entry). See qdqn_cartpole/models/torch_statevector.py for why, with numbers.
 
     Gradients here are exact, like adjoint/parameter-shift and unlike SPSA.
-    `scripts/verify_backend_equivalence.py` checks the forward values against
+    `qdqn_cartpole/cli/verify_backend_equivalence.py` checks the forward values against
     Qiskit's own Statevector and the gradients against qiskit-torch-module.
     """
 

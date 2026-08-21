@@ -1,4 +1,4 @@
-"""All figure-generation logic. Called from scripts/make_figures.py.
+"""All figure-generation logic. Called from qdqn_cartpole/cli/make_figures.py.
 
 Styling: consistent across figures, and readable without color -- QDQN and
 MLP series are distinguished by both color AND linestyle/marker, not color

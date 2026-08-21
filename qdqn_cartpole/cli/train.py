@@ -1,6 +1,6 @@
 """CLI entry point: train one (config, seed) run and write results/{name}_{seed}.csv.
 
-This script -- not src/trainer.py -- is where it's okay to know whether the
+This script -- not qdqn_cartpole/trainer.py -- is where it's okay to know whether the
 model is quantum: it reads the config, decides which model class to build,
 picks the backend, and assembles the (possibly multi-group) optimizer.
 trainer.py never sees any of that.
@@ -18,6 +18,7 @@ import torch
 from ..config import load_config
 from ..seeds import set_seed
 from ..trainer import train
+from . import announce_paths
 
 # Must match src.trainer.train()'s eval_seed_base default, so the final greedy
 # evaluation is scored on the same start states as the periodic curve -- and so
@@ -106,7 +107,7 @@ def build_model_and_optimizer(config: dict, seed: int):
 
 def train_from_config(config: dict, seed: int, results_path: str, **overrides):
     """Single place that maps a normalized config onto trainer.train()'s kwargs,
-    shared by this script and scripts/sweep_seeds.py."""
+    shared by this script and qdqn_cartpole/cli/sweep_seeds.py."""
     kwargs = dict(
         env_id=config["env_id"],
         max_episodes=config["max_episodes"],
@@ -162,6 +163,7 @@ def main():
         help="rollouts in the end-of-training greedy evaluation; 0 skips it",
     )
     args = parser.parse_args()
+    announce_paths(results=args.results_dir)
 
     print_resolved_versions()
 

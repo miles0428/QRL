@@ -44,7 +44,7 @@ This is a faster evaluator for a Qiskit circuit, not a reimplementation of one.
   - Finite-shot and noisy evaluation still runs on qiskit-aer, unchanged. This
     path is statevector-only and exact, so it cannot model shot noise.
 
-`scripts/verify_backend_equivalence.py` asserts agreement with Qiskit's own
+`qdqn_cartpole/cli/verify_backend_equivalence.py` asserts agreement with Qiskit's own
 `Statevector.expectation_value` to ~1e-6 over random inputs; that check is what
 licenses using this for training.
 
@@ -407,7 +407,7 @@ def _simulate_reference(
     `simulate` is a performance rewrite of exactly this (stage grouping, batched
     matrix construction, CX runs precomposed into one permutation). Keeping the
     straightforward version means the optimization can be checked against it
-    directly -- see scripts/verify_backend_equivalence.py --check-reference --
+    directly -- see qdqn_cartpole/cli/verify_backend_equivalence.py --check-reference --
     rather than only against Qiskit.
     """
     batch = encoding.shape[0]

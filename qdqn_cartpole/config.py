@@ -2,8 +2,8 @@
 
 v3 moved `configs/*.yaml` to the sectioned layout the brief specifies
 (`model:` / `trainer:` / `optim:` / `gradient:` / `eval:`). Everything
-downstream -- `scripts/train.py`, `scripts/sweep_seeds.py`,
-`scripts/benchmark_backends.py` -- consumes a single *flat* dict instead of
+downstream -- `qdqn_cartpole/cli/train.py`, `qdqn_cartpole/cli/sweep_seeds.py`,
+`qdqn_cartpole/cli/benchmark_backends.py` -- consumes a single *flat* dict instead of
 reaching into sections, so there is exactly one place that knows the file
 layout: `normalize_config()` below.
 
@@ -75,7 +75,7 @@ DEFAULTS: dict[str, Any] = {
     "solve_window": 100,
     "env_id": "CartPole-v1",
     # Greedy (epsilon=0) evaluation. The training reward columns are measured
-    # under exploration and understate the policy; see src/trainer.py::train.
+    # under exploration and understate the policy; see qdqn_cartpole/trainer.py::train.
     # eval_every=0 disables the periodic curve entirely.
     "eval_every": 50,
     "eval_episodes": 5,
@@ -84,7 +84,7 @@ DEFAULTS: dict[str, Any] = {
     "final_eval_episodes": 100,
     # Epsilon: "exponential_episodes" is the Skolik reference schedule
     # (eps *= decay once per episode); "linear_steps" is the pre-v3 schedule
-    # (linear in environment steps). See src/trainer.py::epsilon_at.
+    # (linear in environment steps). See qdqn_cartpole/trainer.py::epsilon_at.
     "epsilon_schedule": "exponential_episodes",
     "epsilon_start": 1.0,
     "epsilon_end": 0.01,

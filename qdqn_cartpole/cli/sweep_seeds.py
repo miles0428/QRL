@@ -23,6 +23,7 @@ import gymnasium as gym
 import pandas as pd
 import torch
 
+from . import announce_paths
 from .train import (
     build_model_and_optimizer,
     print_resolved_versions,
@@ -114,6 +115,7 @@ def main():
     parser.add_argument("--backend", type=str, default=None, help="override config's gradient.backend")
     parser.add_argument("--force", action="store_true", help="launch the full sweep even if the projected wall-clock exceeds ~6h")
     args = parser.parse_args()
+    announce_paths(results=args.results_dir)
 
     print_resolved_versions()
 
