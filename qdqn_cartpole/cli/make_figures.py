@@ -14,17 +14,14 @@ KeyError. load_config is the single place that knows the file layout.
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import torch
 
-from src import plots
-from src.config import load_config
-from src.models.mlp import MLPQFunction
-from src.models.vqc import VQCQFunction
+from .. import plots
+from ..config import load_config
+from ..models.mlp import MLPQFunction
+from ..models.vqc import VQCQFunction
 
 
 def try_load_results(config_name: str, seeds: list[int], results_dir: str):

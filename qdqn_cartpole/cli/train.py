@@ -12,15 +12,12 @@ import argparse
 import importlib.metadata
 import json
 import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import torch
 
-from src.config import load_config
-from src.seeds import set_seed
-from src.trainer import train
+from ..config import load_config
+from ..seeds import set_seed
+from ..trainer import train
 
 # Must match src.trainer.train()'s eval_seed_base default, so the final greedy
 # evaluation is scored on the same start states as the periodic curve -- and so
@@ -62,7 +59,7 @@ def resolve_batch_size(config: dict) -> int:
         print(f"batch size: {batch_size} (from config; auto_batch_size disabled)")
         return batch_size
 
-    from src.models.vqc import suggested_batch_size
+    from ..models.vqc import suggested_batch_size
 
     detected, provenance = suggested_batch_size(default=batch_size)
     print(f"batch size: {detected} (auto: {provenance}; config value {batch_size} overridden)")
@@ -71,7 +68,7 @@ def resolve_batch_size(config: dict) -> int:
 
 def build_model_and_optimizer(config: dict, seed: int):
     if config["model_type"] == "vqc":
-        from src.models.vqc import VQCQFunction
+        from ..models.vqc import VQCQFunction
 
         model = VQCQFunction(
             n_qubits=config["n_qubits"],
@@ -97,7 +94,7 @@ def build_model_and_optimizer(config: dict, seed: int):
             amsgrad=config["amsgrad"],
         )
     elif config["model_type"] == "mlp":
-        from src.models.mlp import MLPQFunction
+        from ..models.mlp import MLPQFunction
 
         model = MLPQFunction(hidden=config["hidden"])
         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], amsgrad=config["amsgrad"])
@@ -220,7 +217,7 @@ def main():
     # defined on greedy play, so it is measured here, once, over enough episodes
     # to be worth quoting. Both numbers are reported; neither replaces the other.
     if config["final_eval_episodes"]:
-        from src.evaluate import evaluate
+        from ..evaluate import evaluate
 
         print(f"\n=== final greedy evaluation ({config['final_eval_episodes']} episodes) ===")
         final_eval = evaluate(

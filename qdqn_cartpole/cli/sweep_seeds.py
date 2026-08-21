@@ -16,26 +16,23 @@ from __future__ import annotations
 
 import argparse
 import copy
-import sys
 import time
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import gymnasium as gym
 import pandas as pd
 import torch
 
-from scripts.train import (
+from .train import (
     build_model_and_optimizer,
     print_resolved_versions,
     resolve_batch_size,
     train_from_config,
 )
-from src.config import load_config
-from src.replay import ReplayBuffer
-from src.seeds import set_seed
-from src.trainer import _select_action, _td_loss
+from ..config import load_config
+from ..replay import ReplayBuffer
+from ..seeds import set_seed
+from ..trainer import _select_action, _td_loss
 
 MAX_WALL_CLOCK_S = 6 * 3600  # ~6 hours, per project brief
 

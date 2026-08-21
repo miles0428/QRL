@@ -67,10 +67,7 @@ def evaluate(
 
 
 if __name__ == "__main__":
-    import sys
-
-    sys.path.insert(0, ".")
-    from src.models.mlp import MLPQFunction
+    from .models.mlp import MLPQFunction
 
     model = MLPQFunction()
     result = evaluate(model, n_episodes=5, seed=0)

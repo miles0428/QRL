@@ -32,8 +32,6 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 import torch
 
 # (label, backend, gradient_method, steps_override)
@@ -56,7 +54,7 @@ def time_arm(backend: str, gradient_method: str, steps: int, batch: int, n_warmu
     of steps and its episodes get longer), which would confound the measurement
     with learning progress. Random inputs cost the circuit exactly the same.
     """
-    from src.models.vqc import VQCQFunction
+    from ..models.vqc import VQCQFunction
 
     t0 = time.perf_counter()
     model = VQCQFunction(backend=backend, gradient_method=gradient_method, seed=0)

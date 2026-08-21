@@ -24,9 +24,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from src.evaluate import run_greedy_rollouts
-from src.replay import ReplayBuffer
-from src.seeds import set_seed
+from .evaluate import run_greedy_rollouts
+from .replay import ReplayBuffer
+from .seeds import set_seed
 
 CSV_HEADER = [
     "episode",

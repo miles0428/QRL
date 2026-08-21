@@ -92,7 +92,7 @@ import torch.nn as nn
 from qiskit.circuit import ParameterVector, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-from src.models.base import QFunction, normalize_observation
+from .base import QFunction, normalize_observation
 
 # v3 defaults, from the Skolik reference implementation
 # (github.com/askolik/quantum_agents, run_quantum.py) -- not our own tuning.
@@ -294,7 +294,7 @@ class _TorchStatevectorBackend(nn.Module):
 
     def __init__(self, circuit, input_params, weight_params, observables, seed=None):
         super().__init__()
-        from src.models import torch_statevector as tsv
+        from . import torch_statevector as tsv
 
         # Explicit ordered parameter lists, never circuit.parameters -- that
         # property sorts alphabetically. See PARAMETER ORDERING in the module
@@ -310,7 +310,7 @@ class _TorchStatevectorBackend(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        from src.models import torch_statevector as tsv
+        from . import torch_statevector as tsv
 
         return tsv.simulate(self._compiled, x, self.weight, self._obs)
 

@@ -30,17 +30,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 import torch
 from qiskit.quantum_info import SparsePauliOp, Statevector
 
-from src.models.base import normalize_observation
-from src.models.vqc import VQCQFunction, build_circuit
+from ..models.base import normalize_observation
+from ..models.vqc import VQCQFunction, build_circuit
 
 
 def reference_expectations(
@@ -245,7 +241,7 @@ def main() -> int:
         # a permutation). Checking them against each other localizes a failure:
         # if both disagree with Qiskit the circuit is wrong, if only the fast one
         # does the optimization is wrong.
-        from src.models import torch_statevector as tsv
+        from ..models import torch_statevector as tsv
 
         scaled = (model.lam * normalize_observation(states)).detach()
         w_ref = model.circuit_weights()

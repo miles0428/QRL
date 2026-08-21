@@ -13,7 +13,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from src.models.base import QFunction, normalize_observation
+from .base import QFunction, normalize_observation
 
 DEFAULT_HIDDEN = 6  # 7*6 + 2 = 44 params, vs VQC's 46 (default config) -- see README
 
