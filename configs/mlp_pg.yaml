@@ -1,0 +1,56 @@
+# Classical control for configs/qpg.yaml: MLP softmax policy, parameter-count
+# matched to the VQC policy (45 params: 40 circuit + 4 lam + 1 beta) within
+# +-20%. hidden=6 gives 44 -- a closer match than on the DQN side, where the VQC
+# carries 2 output weights instead of 1 inverse temperature.
+#
+# Every REINFORCE hyperparameter below is deliberately identical to
+# configs/qpg.yaml. As with mlp_baseline.yaml vs qdqn.yaml, the only intended
+# difference between the two runs is the function approximator.
+#
+# The one setting that cannot be mirrored is the learning rate split: the VQC
+# has three parameter groups on different scales (circuit / lam / beta) and the
+# MLP has one. A single lr equal to the quantum run's lr_variational is the
+# closest honest analogue.
+#
+# Four-layer layout (BLUEPRINT §6.1): runtime / env / model / trainer.
+runtime:
+  experiment_name: mlp_pg
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: CartPole-v1
+  params: {}
+
+model:
+  type: mlp_policy
+  encoder: mlp
+  head: policy
+  # 7*hidden + 2 params = 44 at hidden=6, vs the VQC policy's 45
+  hidden: 6
+  vqc: {}
+
+trainer:
+  algorithm: pg
+  hyperparams:
+    max_episodes: 5000
+    gamma: 0.99
+    n_envs: 8
+    episodes_per_update: 16
+    baseline: batch_mean
+    normalize_advantages: true
+    entropy_coef: 0.0
+    max_grad_norm: 1.0
+    max_steps_per_episode: 500
+    eval_every: 50          # episodes between greedy evaluations; 0 disables
+    eval_episodes: 5        # rollouts per periodic evaluation -- noisy, for the curve
+    final_eval_episodes: 100  # one-off at end of training; the solve claim comes from this
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr: 0.01    # matches qpg.yaml's lr_variational
+    amsgrad: true
+    gradient_method: adjoint
+    backend: torch_sv

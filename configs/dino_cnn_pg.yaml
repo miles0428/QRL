@@ -1,0 +1,45 @@
+# CNN+VQC PG (REINFORCE) on DinoRun-v0
+# Architecture: NatureCNNEncoder → VQC policy head → action distribution
+# Smoke test: 10 episodes / 300s wall clock
+
+runtime:
+  experiment_name: dino_cnn_pg
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: DinoRun-v0
+  params: {}
+
+model:
+  type: cnn_pg
+  encoder: cnn
+  head: policy
+  hidden: 256
+  vqc:
+    n_qubits: 6
+    n_layers: 3
+    reuploading: true
+    observable: zz
+    entangler: cx
+
+trainer:
+  algorithm: pg
+  hyperparams:
+    max_episodes: 5000
+    max_wall_clock_s: 3600
+    gamma: 0.99
+    entropy_coef: 0.01
+    episodes_per_update: 8
+    baseline: batch_mean
+    normalize_advantages: true
+    max_steps_per_episode: 2000
+    eval_every: 0
+    eval_episodes: 10
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr: 0.001
+    amsgrad: true

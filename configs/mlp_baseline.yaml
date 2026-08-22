@@ -1,0 +1,72 @@
+# Classical control: MLP Q-function, parameter-count matched to configs/qdqn.yaml's
+# VQC (46 params: 40 circuit + 4 lam + 2 w) within +-20%. hidden=6 gives 44 params --
+# see README for the derivation.
+#
+# Every DQN hyperparameter below is deliberately identical to configs/qdqn.yaml.
+# That is the whole point of this file: the only difference between the two runs
+# should be the function approximator. v3 changed target_update_every (30 -> 1)
+# and the epsilon schedule (linear-in-steps -> exponential-per-episode) on the
+# quantum side, so both are mirrored here to keep the comparison fair.
+#
+# Four-layer layout (BLUEPRINT §6.1): runtime / env / model / trainer.
+runtime:
+  experiment_name: mlp_baseline
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: CartPole-v1
+  params: {}
+
+model:
+  type: mlp
+  encoder: mlp
+  head: qfunction
+  # 7*hidden + 2 params = 44 at hidden=6, vs the VQC's 46
+  hidden: 6
+  vqc: {}
+
+trainer:
+  algorithm: dqn
+  hyperparams:
+    # The MLP is ~0.01 s/gradient step, so it can afford the same episode budget
+    # as the quantum run and will simply early-stop when it solves.
+    max_episodes: 5000
+    batch_size: 16
+    auto_batch_size: false   # classical path is not circuit-simulation bound
+    gamma: 0.99
+    buffer_capacity: 10000
+    min_buffer_size: 16
+    target_update_every: 3
+    # Environments stepped in lockstep. Action selection is then ONE forward per
+    # tick instead of one per environment step, and that forward is dispatch-bound
+    # so it barely notices the batch: measured 6.52 ms at batch 1 vs 6.81 ms at
+    # batch 8. Net 8.96 -> 2.87 ms per env-step.
+    n_envs: 8
+    steps_per_update: 10
+    loss_fn: huber
+    epsilon_schedule: exponential_episodes
+    epsilon_start: 1.0
+    epsilon_decay: 0.99
+    epsilon_end: 0.01
+    max_steps_per_episode: 500
+    # Greedy (epsilon=0) evaluation. The training reward columns are recorded on
+    # EXPLORING episodes, so they understate the policy whenever epsilon is
+    # appreciable -- at eps=0.13 about one action in eight is random, enough to
+    # topple the pole well short of 500 steps however good the policy is. These
+    # settings add a separate greedy curve, which is what policy quality should
+    # be read from, and what the CartPole-v1 solve criterion is actually defined
+    # on. Costs ~12 s per evaluation once the policy is good; every 50 episodes
+    # over a 5000-episode run is roughly 20 min per seed.
+    eval_every: 50          # episodes between greedy evaluations; 0 disables
+    eval_episodes: 5        # rollouts per periodic evaluation -- noisy, for the curve
+    final_eval_episodes: 100  # one-off at end of training; the solve claim comes from this
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr: 0.001
+    amsgrad: true
+    gradient_method: adjoint
+    backend: torch_sv

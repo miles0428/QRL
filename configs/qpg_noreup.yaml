@@ -1,0 +1,71 @@
+# ABLATION: configs/qpg.yaml with data re-uploading turned OFF. Nothing else.
+#
+# WHAT THIS TESTS. Koelle et al. 2024 (arXiv:2401.07043) report that their pure
+# quantum A2C variants could not learn CartPole at all, diagnosed as vanishing
+# gradients (mean gradient -5.6e-5), and recover performance only by bolting a
+# classical post-processing layer onto the VQC. Their ansatz encodes the
+# observation ONCE at the start; their own discussion names data re-uploading as
+# the most likely fix and says it "was not utilized in our models".
+#
+# Our pure quantum runs solve the environment (qpg: 5/5). Re-uploading is the
+# single largest suspected reason. This config removes it and changes nothing
+# else, so a drop here converts that suspicion into a measurement.
+#
+# THE ABLATION IS EXACTLY ONE VARIABLE. Parameter count is IDENTICAL at 45
+# (40 circuit + 4 lam + 1 beta) with re-uploading on or off -- the variational
+# layers are untouched and only the placement of the encoding changes (circuit
+# depth 35 -> 31). So any difference cannot be attributed to model capacity.
+#
+# Note this still keeps our trainable input scaling `lam` and trainable output
+# scaling `beta`, which the paper also lacks. So this isolates re-uploading
+# alone, not the full gap to their setup.
+#
+# Four-layer layout (BLUEPRINT §6.1): runtime / env / model / trainer.
+runtime:
+  experiment_name: qpg_noreup
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: CartPole-v1
+  params: {}
+
+model:
+  type: vqc_policy
+  encoder: normalize_observation
+  head: policy
+  hidden: 6
+  vqc:
+    n_qubits: 4
+    n_layers: 5
+    reuploading: false   # <-- THE ONLY DIFFERENCE FROM configs/qpg.yaml
+    observables: ["ZZII", "IIZZ"]
+    beta_init: 1.0
+    trainable_beta: true
+
+trainer:
+  algorithm: pg
+  hyperparams:
+    max_episodes: 5000
+    gamma: 0.99
+    n_envs: 8
+    episodes_per_update: 16
+    baseline: batch_mean
+    normalize_advantages: true
+    entropy_coef: 0.0
+    max_grad_norm: 1.0
+    max_steps_per_episode: 500
+    eval_every: 50
+    eval_episodes: 5
+    final_eval_episodes: 100
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr_variational: 0.01
+    lr_lam: 0.01
+    lr_beta: 0.1
+    amsgrad: true
+    gradient_method: adjoint
+    backend: torch_sv

@@ -1,0 +1,94 @@
+# Quantum agent: VQC softmax actor + VQC value critic, trained with A2C + GAE.
+#
+# THE CIRCUIT IS AGAIN configs/qdqn.yaml's, UNCHANGED. Actor and critic are both
+# 4 qubits x 5 layers with data re-uploading and the same torch_sv backend; they
+# share the ansatz but not a single parameter (separate circuits, separate
+# weights). Only the readout differs -- the actor reads two observables into
+# logits, the critic reads one into V(s).
+#
+# Relative to configs/qpg.yaml the ONLY change is the baseline: REINFORCE's
+# batch mean becomes a learned V(s), and the advantage becomes GAE(lambda)
+# instead of the full Monte-Carlo return. Everything else is held fixed so the
+# qpg-vs-qa2c comparison isolates that one substitution.
+#
+# PROVENANCE. Circuit settings inherit qdqn.yaml's (Skolik et al.). The actor
+# head follows Jerbi et al. 2021. GAE is Schulman et al. 2015 (arXiv:1506.02438).
+# Values marked GUESS are ours and are NOT tuned.
+#
+# Four-layer layout (BLUEPRINT §6.1): runtime / env / model / trainer.
+runtime:
+  experiment_name: qa2c_quantum
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: QuantumSpinCartPole-v0
+  params: {}
+
+model:
+  type: vqc_a2c
+  encoder: normalize_observation
+  head: policy
+  hidden: 6
+  vqc:
+    n_qubits: 9
+    n_layers: 5
+    reuploading: true
+    # 9-qubit format: 5 consecutive ZZ pairs on qubits (0,1),(1,2),(2,3),(3,4),(4,5)
+    observables: ["ZZIIIIIII", "IZZIIIIII", "IIZZIIIII", "IIIZZIIII", "IIIIZZIII"]   # actor: one per action
+    beta_init: 1.0
+    trainable_beta: true
+    # Critic head reuses VQCQFunction's [-1,1] -> [0,1] rescaling. V* ~ 99 for
+    # CartPole at gamma=0.99, so the same argument applies: on [0,1] a weight near
+    # 100 suffices, on [-1,1] it would need ~500 and waste half the range.
+    output_rescaling: true
+    # A single observable reading the whole register. A single-qubit Z would score
+    # the state from one qubit's marginal; the actor's two-qubit observables were
+    # chosen for the same reason (see qdqn.yaml).
+    critic_observable: "ZZZZ"
+
+trainer:
+  algorithm: a2c
+  hyperparams:
+    max_episodes: 5000
+    gamma: 0.99
+    n_envs: 8
+    episodes_per_update: 16
+    # GAE(lambda). 1.0 is the Monte-Carlo return (REINFORCE's estimator, unbiased,
+    # high variance); 0.0 is the one-step TD estimate (low variance, biased by
+    # whatever the critic gets wrong). GUESS: 0.95 is the usual A2C/PPO default and
+    # has not been tuned here.
+    gae_lambda: 0.95
+    normalize_advantages: true
+    # GUESS: 0.5, the conventional A2C weight on the value loss.
+    value_coef: 0.5
+    # Huber, for the same reason the DQN side uses it: value targets reach ~99
+    # while the head still outputs ~0.5 early in a run, and MSE lets those first
+    # enormous errors dominate every batch they land in.
+    value_loss_fn: huber
+    entropy_coef: 0.0
+    max_grad_norm: 1.0
+    max_steps_per_episode: 500
+    # The critic takes no part in evaluation: greedy play is argmax over the
+    # actor's logits, identical to the qpg and qdqn paths.
+    eval_every: 50
+    eval_episodes: 5
+    final_eval_episodes: 100
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr_variational: 0.01              # actor circuit weights
+    lr_lam: 0.01                      # actor input scaling
+    lr_beta: 0.1                       # actor head
+    lr_critic_vqc: 0.01               # critic circuit weights
+    lr_critic_lam: 0.01               # critic input scaling
+    lr_critic_w: 0.1                  # critic output scaling -- must climb from 1 to ~V* = 99
+    amsgrad: true
+    # Same compiled torch-statevector path as every other config here. A2C costs
+    # TWO batched forwards per gradient step rather than one (actor and critic are
+    # separate circuits), but each is still a single tsv.simulate call over the
+    # whole batch of episodes.
+    gradient_method: adjoint
+    backend: torch_sv
