@@ -47,7 +47,7 @@ model:
     # A single observable reading the whole register. A single-qubit Z would score
     # the state from one qubit's marginal; the actor's two-qubit observables were
     # chosen for the same reason (see qdqn.yaml).
-    critic_observable: "ZZZZ"
+    critic_observable: "ZZZZZZZZZ"
 
 trainer:
   algorithm: a2c

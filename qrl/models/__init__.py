@@ -83,10 +83,10 @@ def _build_dqn_model(cfg, obs_space, action_space):
         vqc_cfg = cfg.get("vqc", {})
         return VQCQFunction(
             n_actions=int(action_space.n),
-            n_qubits=vqc_cfg.get("n_qubits", 4),
-            n_layers=vqc_cfg.get("n_layers", 5),
-            reuploading=vqc_cfg.get("reuploading", True),
-            observables=vqc_cfg.get("observables", ["ZZII", "IIZZ"]),
+            n_qubits=cfg.get("n_qubits") or vqc_cfg.get("n_qubits", 4),
+            n_layers=cfg.get("n_layers") or vqc_cfg.get("n_layers", 5),
+            reuploading=cfg.get("reuploading") if cfg.get("reuploading") is not None else vqc_cfg.get("reuploading", True),
+            observables=cfg.get("observables") or vqc_cfg.get("observables", ["ZZII", "IIZZ"]),
             backend=vqc_cfg.get("backend", "torch_sv"),
         )
     else:
@@ -121,10 +121,10 @@ def _build_pg_model(cfg, obs_space, action_space):
         vqc_cfg = cfg.get("vqc", {})
         return VQCPolicy(
             n_actions=int(action_space.n),
-            n_qubits=vqc_cfg.get("n_qubits", 4),
-            n_layers=vqc_cfg.get("n_layers", 5),
-            reuploading=vqc_cfg.get("reuploading", True),
-            observables=vqc_cfg.get("observables", ["ZZII", "IIZZ"]),
+            n_qubits=cfg.get("n_qubits") or vqc_cfg.get("n_qubits", 4),
+            n_layers=cfg.get("n_layers") or vqc_cfg.get("n_layers", 5),
+            reuploading=cfg.get("reuploading") if cfg.get("reuploading") is not None else vqc_cfg.get("reuploading", True),
+            observables=cfg.get("observables") or vqc_cfg.get("observables", ["ZZII", "IIZZ"]),
             backend=vqc_cfg.get("backend", "torch_sv"),
         )
     else:
@@ -159,17 +159,17 @@ def _build_a2c_models(cfg, obs_space, action_space):
     elif cfg["type"].startswith("vqc"):
         actor = VQCPolicy(
             n_actions=int(action_space.n),
-            n_qubits=vqc_cfg.get("n_qubits", 4),
-            n_layers=vqc_cfg.get("n_layers", 5),
-            reuploading=vqc_cfg.get("reuploading", True),
-            observables=vqc_cfg.get("observables", ["ZZII", "IIZZ"]),
+            n_qubits=cfg.get("n_qubits") or vqc_cfg.get("n_qubits", 4),
+            n_layers=cfg.get("n_layers") or vqc_cfg.get("n_layers", 5),
+            reuploading=cfg.get("reuploading") if cfg.get("reuploading") is not None else vqc_cfg.get("reuploading", True),
+            observables=cfg.get("observables") or vqc_cfg.get("observables", ["ZZII", "IIZZ"]),
             backend=vqc_cfg.get("backend", "torch_sv"),
         )
         critic = VQCValue(
-            n_qubits=vqc_cfg.get("n_qubits", 4),
-            n_layers=vqc_cfg.get("n_layers", 5),
-            reuploading=vqc_cfg.get("reuploading", True),
-            observable=vqc_cfg.get("critic_observable", "ZZZZ"),
+            n_qubits=cfg.get("n_qubits") or vqc_cfg.get("n_qubits", 4),
+            n_layers=cfg.get("n_layers") or vqc_cfg.get("n_layers", 5),
+            reuploading=cfg.get("reuploading") if cfg.get("reuploading") is not None else vqc_cfg.get("reuploading", True),
+            observable=cfg.get("critic_observable") or vqc_cfg.get("critic_observable", "ZZZZ"),
             backend=vqc_cfg.get("backend", "torch_sv"),
         )
     else:
