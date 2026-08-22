@@ -204,6 +204,101 @@ def _a2c_losses(
     }
 
 
+class A2CTrainer:
+    """Trainer class wrapper for A2C with GAE(lambda).
+
+    Provides a class-based API that wraps the `train_a2c` function for
+    backwards compatibility with code that expects class-based trainers.
+    """
+
+    def __init__(
+        self,
+        actor: nn.Module,
+        critic: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        results_path: str = "results/a2c.csv",
+        checkpoint_path: str = "checkpoints/a2c.pt",
+        seed: int = 0,
+        env_id: str = "CartPole-v1",
+        max_episodes: int = 2000,
+        gamma: float = 0.99,
+        gae_lambda: float = 0.95,
+        n_envs: int = 8,
+        episodes_per_update: int = 8,
+        normalize_advantages: bool = True,
+        entropy_coef: float = 0.0,
+        value_coef: float = 0.5,
+        value_loss_fn: str = "huber",
+        max_grad_norm: float | None = None,
+        solve_threshold: float = 475.0,
+        solve_window: int = 100,
+        max_steps_per_episode: int = 500,
+        max_wall_clock_s: float | None = None,
+        eval_every: int = 50,
+        eval_episodes: int = 5,
+        eval_seed_base: int = 10_000,
+        print_every: int = 10,
+        verbose: bool = True,
+    ):
+        self.actor = actor
+        self.critic = critic
+        self.optimizer = optimizer
+        self.results_path = results_path
+        self.checkpoint_path = checkpoint_path
+        self.seed = seed
+        self.env_id = env_id
+        self.max_episodes = max_episodes
+        self.gamma = gamma
+        self.gae_lambda = gae_lambda
+        self.n_envs = n_envs
+        self.episodes_per_update = episodes_per_update
+        self.normalize_advantages = normalize_advantages
+        self.entropy_coef = entropy_coef
+        self.value_coef = value_coef
+        self.value_loss_fn = value_loss_fn
+        self.max_grad_norm = max_grad_norm
+        self.solve_threshold = solve_threshold
+        self.solve_window = solve_window
+        self.max_steps_per_episode = max_steps_per_episode
+        self.max_wall_clock_s = max_wall_clock_s
+        self.eval_every = eval_every
+        self.eval_episodes = eval_episodes
+        self.eval_seed_base = eval_seed_base
+        self.print_every = print_every
+        self.verbose = verbose
+
+    def train(self) -> dict:
+        """Run the A2C training loop and return the results dict."""
+        return train_a2c(
+            actor=self.actor,
+            critic=self.critic,
+            optimizer=self.optimizer,
+            results_path=self.results_path,
+            checkpoint_path=self.checkpoint_path,
+            seed=self.seed,
+            env_id=self.env_id,
+            max_episodes=self.max_episodes,
+            gamma=self.gamma,
+            gae_lambda=self.gae_lambda,
+            n_envs=self.n_envs,
+            episodes_per_update=self.episodes_per_update,
+            normalize_advantages=self.normalize_advantages,
+            entropy_coef=self.entropy_coef,
+            value_coef=self.value_coef,
+            value_loss_fn=self.value_loss_fn,
+            max_grad_norm=self.max_grad_norm,
+            solve_threshold=self.solve_threshold,
+            solve_window=self.solve_window,
+            max_steps_per_episode=self.max_steps_per_episode,
+            max_wall_clock_s=self.max_wall_clock_s,
+            eval_every=self.eval_every,
+            eval_episodes=self.eval_episodes,
+            eval_seed_base=self.eval_seed_base,
+            print_every=self.print_every,
+            verbose=self.verbose,
+        )
+
+
 def train_a2c(
     actor: nn.Module,
     critic: nn.Module,

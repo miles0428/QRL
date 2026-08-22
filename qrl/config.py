@@ -23,14 +23,33 @@ from typing import Any
 
 import yaml
 
-# nested location -> flat key. (section, key_in_section) -> flat_name
-_SECTION_MAP: dict[tuple[str, str], str] = {
+# nested location -> flat key.
+# 2-level: (section, key_in_section) -> flat_name
+# 3-level: (section, subsection, key) -> flat_name  (e.g. trainer.hyperparams.*)
+_SECTION_MAP: dict[tuple[str, ...], str] = {
+    # model (2-level)
     ("model", "type"): "model_type",
     ("model", "n_qubits"): "n_qubits",
     ("model", "n_layers"): "n_layers",
     ("model", "reuploading"): "reuploading",
     ("model", "observables"): "observables",
     ("model", "hidden"): "hidden",
+    ("model", "output_rescaling"): "output_rescaling",
+    ("model", "per_layer_encoding"): "per_layer_encoding",
+    ("model", "beta_init"): "beta_init",
+    ("model", "trainable_beta"): "trainable_beta",
+    ("model", "critic_observable"): "critic_observable",
+    # model.vqc (3-level)
+    ("model", "vqc", "n_qubits"): "n_qubits",
+    ("model", "vqc", "n_layers"): "n_layers",
+    ("model", "vqc", "reuploading"): "reuploading",
+    ("model", "vqc", "observables"): "observables",
+    ("model", "vqc", "output_rescaling"): "output_rescaling",
+    ("model", "vqc", "beta_init"): "beta_init",
+    ("model", "vqc", "trainable_beta"): "trainable_beta",
+    ("model", "vqc", "critic_observable"): "critic_observable",
+    # trainer (2-level) — legacy flat or optimizer sub-section
+    ("trainer", "algorithm"): "algorithm",
     ("trainer", "episodes"): "max_episodes",
     ("trainer", "batch_size"): "batch_size",
     ("trainer", "auto_batch_size"): "auto_batch_size",
@@ -41,47 +60,92 @@ _SECTION_MAP: dict[tuple[str, str], str] = {
     ("trainer", "steps_per_update"): "steps_per_update",
     ("trainer", "n_envs"): "n_envs",
     ("trainer", "loss_fn"): "loss_fn",
-    ("model", "output_rescaling"): "output_rescaling",
-    ("model", "per_layer_encoding"): "per_layer_encoding",
     ("trainer", "eps_schedule"): "epsilon_schedule",
     ("trainer", "eps_init"): "epsilon_start",
     ("trainer", "eps_min"): "epsilon_end",
     ("trainer", "eps_decay"): "epsilon_decay",
     ("trainer", "eps_decay_steps"): "epsilon_decay_steps",
     ("trainer", "max_steps_per_episode"): "max_steps_per_episode",
-    ("optim", "lr_variational"): "lr_vqc",
-    ("optim", "lr_input_scaling"): "lr_lam",
-    ("optim", "lr_output_scaling"): "lr_w",
-    ("optim", "lr"): "lr",
-    ("optim", "amsgrad"): "amsgrad",
-    # Policy-gradient only; ignored by the DQN path. See src/pg_trainer.py.
-    ("model", "beta_init"): "beta_init",
-    ("model", "trainable_beta"): "trainable_beta",
-    ("optim", "lr_beta"): "lr_beta",
     ("trainer", "episodes_per_update"): "episodes_per_update",
     ("trainer", "baseline"): "baseline",
     ("trainer", "normalize_advantages"): "normalize_advantages",
     ("trainer", "entropy_coef"): "entropy_coef",
     ("trainer", "max_grad_norm"): "max_grad_norm",
-    # A2C only. See src/a2c_trainer.py.
     ("trainer", "gae_lambda"): "gae_lambda",
     ("trainer", "value_coef"): "value_coef",
     ("trainer", "value_loss_fn"): "value_loss_fn",
-    ("critic", "observable"): "critic_observable",
-    ("critic", "hidden"): "critic_hidden",
-    ("critic", "w_init"): "critic_w_init",
+    # trainer.hyperparams (3-level)
+    ("trainer", "hyperparams", "max_episodes"): "max_episodes",
+    ("trainer", "hyperparams", "batch_size"): "batch_size",
+    ("trainer", "hyperparams", "auto_batch_size"): "auto_batch_size",
+    ("trainer", "hyperparams", "gamma"): "gamma",
+    ("trainer", "hyperparams", "buffer_capacity"): "buffer_capacity",
+    ("trainer", "hyperparams", "min_buffer_size"): "min_buffer_size",
+    ("trainer", "hyperparams", "target_update_every"): "target_update_every",
+    ("trainer", "hyperparams", "steps_per_update"): "steps_per_update",
+    ("trainer", "hyperparams", "n_envs"): "n_envs",
+    ("trainer", "hyperparams", "loss_fn"): "loss_fn",
+    ("trainer", "hyperparams", "epsilon_schedule"): "epsilon_schedule",
+    ("trainer", "hyperparams", "epsilon_start"): "epsilon_start",
+    ("trainer", "hyperparams", "epsilon_end"): "epsilon_end",
+    ("trainer", "hyperparams", "epsilon_decay"): "epsilon_decay",
+    ("trainer", "hyperparams", "epsilon_decay_steps"): "epsilon_decay_steps",
+    ("trainer", "hyperparams", "max_steps_per_episode"): "max_steps_per_episode",
+    ("trainer", "hyperparams", "episodes_per_update"): "episodes_per_update",
+    ("trainer", "hyperparams", "baseline"): "baseline",
+    ("trainer", "hyperparams", "normalize_advantages"): "normalize_advantages",
+    ("trainer", "hyperparams", "entropy_coef"): "entropy_coef",
+    ("trainer", "hyperparams", "max_grad_norm"): "max_grad_norm",
+    ("trainer", "hyperparams", "gae_lambda"): "gae_lambda",
+    ("trainer", "hyperparams", "value_coef"): "value_coef",
+    ("trainer", "hyperparams", "value_loss_fn"): "value_loss_fn",
+    ("trainer", "hyperparams", "eval_every"): "eval_every",
+    ("trainer", "hyperparams", "eval_episodes"): "eval_episodes",
+    ("trainer", "hyperparams", "final_eval_episodes"): "final_eval_episodes",
+    ("trainer", "hyperparams", "solve_threshold"): "solve_threshold",
+    ("trainer", "hyperparams", "solve_window"): "solve_window",
+    # trainer.optimizer (3-level)
+    ("trainer", "optimizer", "lr"): "lr",
+    ("trainer", "optimizer", "lr_variational"): "lr_vqc",
+    ("trainer", "optimizer", "lr_input_scaling"): "lr_lam",
+    ("trainer", "optimizer", "lr_output_scaling"): "lr_w",
+    ("trainer", "optimizer", "lr_beta"): "lr_beta",
+    ("trainer", "optimizer", "lr_critic"): "lr_critic",
+    ("trainer", "optimizer", "lr_critic_variational"): "lr_critic_vqc",
+    ("trainer", "optimizer", "lr_critic_input_scaling"): "lr_critic_lam",
+    ("trainer", "optimizer", "lr_critic_output_scaling"): "lr_critic_w",
+    ("trainer", "optimizer", "amsgrad"): "amsgrad",
+    ("trainer", "optimizer", "gradient_method"): "gradient_method",
+    ("trainer", "optimizer", "backend"): "backend",
+    # optim (2-level — legacy flat)
+    ("optim", "lr_variational"): "lr_vqc",
+    ("optim", "lr_input_scaling"): "lr_lam",
+    ("optim", "lr_output_scaling"): "lr_w",
+    ("optim", "lr"): "lr",
+    ("optim", "amsgrad"): "amsgrad",
+    ("optim", "lr_beta"): "lr_beta",
     ("optim", "lr_critic_variational"): "lr_critic_vqc",
     ("optim", "lr_critic_input_scaling"): "lr_critic_lam",
     ("optim", "lr_critic_output_scaling"): "lr_critic_w",
     ("optim", "lr_critic"): "lr_critic",
+    # gradient (2-level)
     ("gradient", "method"): "gradient_method",
     ("gradient", "backend"): "backend",
+    # eval (2-level)
     ("eval", "solve_threshold"): "solve_threshold",
     ("eval", "solve_window"): "solve_window",
     ("eval", "env_id"): "env_id",
     ("eval", "eval_every"): "eval_every",
     ("eval", "eval_episodes"): "eval_episodes",
     ("eval", "final_eval_episodes"): "final_eval_episodes",
+    # critic (2-level)
+    ("critic", "observable"): "critic_observable",
+    ("critic", "hidden"): "critic_hidden",
+    ("critic", "w_init"): "critic_w_init",
+    # runtime (3-level)
+    ("runtime", "experiment_name"): "name",
+    # env (2-level)
+    ("env", "id"): "env",
 }
 
 DEFAULTS: dict[str, Any] = {
@@ -164,12 +228,15 @@ REQUIRED = ("name", "model_type", "max_episodes")
 MODEL_ALGO = {
     "vqc": "dqn",
     "mlp": "dqn",
+    "cnn_dqn": "dqn",
     "vqc_policy": "pg",
     "mlp_policy": "pg",
+    "cnn_pg": "pg",
     "vqc_a2c": "a2c",  # Q2Q: quantum actor, quantum critic
     "mlp_a2c": "a2c",  # A2C: classical actor, classical critic
     "q2c": "a2c",      # Q2C: quantum actor, classical critic
     "a2q": "a2c",      # A2Q: classical actor, quantum critic
+    "cnn_a2c": "a2c",
 }
 
 
@@ -192,11 +259,23 @@ def normalize_config(raw: dict) -> dict:
         flat["model_type"] = raw["model"]
         from_section.add("model_type")
 
-    for (section, key), flat_key in _SECTION_MAP.items():
+    for (section, *rest), flat_key in _SECTION_MAP.items():
         block = raw.get(section)
-        if isinstance(block, dict) and key in block:
-            flat[flat_key] = block[key]
-            from_section.add(flat_key)
+        if not isinstance(block, dict):
+            continue
+        if len(rest) == 1:
+            # 2-level: (section, key) -> flat_key
+            key = rest[0]
+            if key in block:
+                flat[flat_key] = block[key]
+                from_section.add(flat_key)
+        elif len(rest) == 2:
+            # 3-level: (section, subsection, key) -> flat_key
+            sub_key, key = rest
+            sub_block = block.get(sub_key)
+            if isinstance(sub_block, dict) and key in sub_block:
+                flat[flat_key] = sub_block[key]
+                from_section.add(flat_key)
 
     # Legacy top-level scalars fill in only where no section supplied the value,
     # so a sectioned file is never silently overridden by a stale top-level key.
@@ -224,6 +303,8 @@ def normalize_config(raw: dict) -> dict:
         )
     if flat.get("observables") is not None:
         flat["observables"] = list(flat["observables"])
+    # Convenience alias so callers can use cfg["type"] instead of cfg["model_type"].
+    flat["type"] = flat["model_type"]
     return flat
 
 

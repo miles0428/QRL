@@ -223,6 +223,92 @@ def _policy_loss(model, batch, gamma, baseline, normalize_advantages, entropy_co
     return loss, float(entropy.mean().item())
 
 
+class PGTrainer:
+    """Trainer class wrapper for REINFORCE-with-baseline.
+
+    Provides a class-based API that wraps the `train_pg` function for
+    backwards compatibility with code that expects class-based trainers.
+    """
+
+    def __init__(
+        self,
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        results_path: str = "results/pg.csv",
+        checkpoint_path: str = "checkpoints/pg.pt",
+        seed: int = 0,
+        env_id: str = "CartPole-v1",
+        max_episodes: int = 2000,
+        gamma: float = 0.99,
+        n_envs: int = 8,
+        episodes_per_update: int = 8,
+        baseline: str = "batch_mean",
+        normalize_advantages: bool = True,
+        entropy_coef: float = 0.0,
+        max_grad_norm: float | None = None,
+        solve_threshold: float = 475.0,
+        solve_window: int = 100,
+        max_steps_per_episode: int = 500,
+        max_wall_clock_s: float | None = None,
+        eval_every: int = 50,
+        eval_episodes: int = 5,
+        eval_seed_base: int = 10_000,
+        print_every: int = 10,
+        verbose: bool = True,
+    ):
+        self.model = model
+        self.optimizer = optimizer
+        self.results_path = results_path
+        self.checkpoint_path = checkpoint_path
+        self.seed = seed
+        self.env_id = env_id
+        self.max_episodes = max_episodes
+        self.gamma = gamma
+        self.n_envs = n_envs
+        self.episodes_per_update = episodes_per_update
+        self.baseline = baseline
+        self.normalize_advantages = normalize_advantages
+        self.entropy_coef = entropy_coef
+        self.max_grad_norm = max_grad_norm
+        self.solve_threshold = solve_threshold
+        self.solve_window = solve_window
+        self.max_steps_per_episode = max_steps_per_episode
+        self.max_wall_clock_s = max_wall_clock_s
+        self.eval_every = eval_every
+        self.eval_episodes = eval_episodes
+        self.eval_seed_base = eval_seed_base
+        self.print_every = print_every
+        self.verbose = verbose
+
+    def train(self) -> dict:
+        """Run the REINFORCE training loop and return the results dict."""
+        return train_pg(
+            model=self.model,
+            optimizer=self.optimizer,
+            results_path=self.results_path,
+            checkpoint_path=self.checkpoint_path,
+            seed=self.seed,
+            env_id=self.env_id,
+            max_episodes=self.max_episodes,
+            gamma=self.gamma,
+            n_envs=self.n_envs,
+            episodes_per_update=self.episodes_per_update,
+            baseline=self.baseline,
+            normalize_advantages=self.normalize_advantages,
+            entropy_coef=self.entropy_coef,
+            max_grad_norm=self.max_grad_norm,
+            solve_threshold=self.solve_threshold,
+            solve_window=self.solve_window,
+            max_steps_per_episode=self.max_steps_per_episode,
+            max_wall_clock_s=self.max_wall_clock_s,
+            eval_every=self.eval_every,
+            eval_episodes=self.eval_episodes,
+            eval_seed_base=self.eval_seed_base,
+            print_every=self.print_every,
+            verbose=self.verbose,
+        )
+
+
 def train_pg(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,

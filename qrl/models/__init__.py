@@ -7,29 +7,29 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import gymnasium as gym
 
-from qrl.config_schema import ModelConfig, algo_for
+from qrl.config_schema import algo_for
 
 
 def build_model(
-    cfg: ModelConfig,
+    cfg: dict,
     obs_space: "gym.Space",
     action_space: "gym.Space",
 ) -> object:
     """Build and return the correct model(s) for the given configuration.
 
-    Routing is based on ``cfg.type`` (e.g. ``"vqc_a2c"``, ``"mlp_policy"``,
+    Routing is based on ``cfg["type"]`` (e.g. ``"vqc_a2c"``, ``"mlp_policy"``,
     ``"cnn_dqn"``), which maps to an algorithm family via
     :func:`qrl.config_schema.algo_for`.
 
-    - **DQN** (``cfg.type`` in ``{"vqc", "mlp", "cnn_dqn"}``):
+    - **DQN** (``cfg["type"]`` in ``{"vqc", "mlp", "cnn_dqn"}``):
         Returns a single Q-network.
-    - **PG**  (``cfg.type`` in ``{"vqc_policy", "mlp_policy", "cnn_pg"}``):
+    - **PG**  (``cfg["type"]`` in ``{"vqc_policy", "mlp_policy", "cnn_pg"}``):
         Returns a single policy network.
-    - **A2C** (``cfg.type`` in ``{"vqc_a2c", "mlp_a2c", "q2c", "a2q", "cnn_a2c"}``):
+    - **A2C** (``cfg["type"]`` in ``{"vqc_a2c", "mlp_a2c", "q2c", "a2q", "cnn_a2c"}``):
         Returns a tuple ``(actor, critic)``.
 
     Args:
-        cfg: The ``model`` namespace from :class:`qrl.config_schema.ConfigSchema`.
+        cfg: Flat dict config as returned by :func:`qrl.config.load_config`.
         obs_space: Gymnasium observation space (used for input-dimension checks).
         action_space: Gymnasium action space (used for output-dimension checks).
 
@@ -37,9 +37,9 @@ def build_model(
         A model instance, or a tuple ``(actor, critic)`` for A2C configs.
 
     Raises:
-        ValueError: If ``cfg.type`` is not a known model family.
+        ValueError: If ``cfg["type"]`` is not a known model family.
     """
-    model_type = cfg.type
+    model_type = cfg["type"]
     algo = algo_for(model_type)
 
     if algo == "dqn":
@@ -66,10 +66,10 @@ def _build_dqn_model(cfg, obs_space, action_space):
     from qrl.models.mlp import MLPQFunction
     from qrl.models.cnn import CNNVQCDQNActorCritic
 
-    hidden = cfg.hidden or 6
+    hidden = cfg["hidden"] or 6
 
-    if cfg.type == "cnn_dqn":
-        vqc_cfg = cfg.vqc or {}
+    if cfg["type"] == "cnn_dqn":
+        vqc_cfg = cfg.get("vqc", {})
         return CNNVQCDQNActorCritic(
             n_actions=int(action_space.n),
             n_qubits=vqc_cfg.get("n_qubits", 6),
@@ -77,10 +77,10 @@ def _build_dqn_model(cfg, obs_space, action_space):
             reuploading=vqc_cfg.get("reuploading", True),
             observable=vqc_cfg.get("observable", "zz"),
             entangler=vqc_cfg.get("entangler", "cx"),
-            hidden=cfg.hidden or 256,
+            hidden=cfg["hidden"] or 256,
         )
-    elif cfg.type.startswith("vqc"):
-        vqc_cfg = cfg.vqc or {}
+    elif cfg["type"].startswith("vqc"):
+        vqc_cfg = cfg.get("vqc", {})
         return VQCQFunction(
             n_actions=int(action_space.n),
             n_qubits=vqc_cfg.get("n_qubits", 4),
@@ -104,10 +104,10 @@ def _build_pg_model(cfg, obs_space, action_space):
     from qrl.models.mlp import MLPPolicy
     from qrl.models.cnn import CNNVQCPolicy
 
-    hidden = cfg.hidden or 6
+    hidden = cfg["hidden"] or 6
 
-    if cfg.type == "cnn_pg":
-        vqc_cfg = cfg.vqc or {}
+    if cfg["type"] == "cnn_pg":
+        vqc_cfg = cfg.get("vqc", {})
         return CNNVQCPolicy(
             n_actions=int(action_space.n),
             n_qubits=vqc_cfg.get("n_qubits", 6),
@@ -115,10 +115,10 @@ def _build_pg_model(cfg, obs_space, action_space):
             reuploading=vqc_cfg.get("reuploading", True),
             observable=vqc_cfg.get("observable", "zz"),
             entangler=vqc_cfg.get("entangler", "cx"),
-            hidden=cfg.hidden or 256,
+            hidden=cfg["hidden"] or 256,
         )
-    elif cfg.type.startswith("vqc"):
-        vqc_cfg = cfg.vqc or {}
+    elif cfg["type"].startswith("vqc"):
+        vqc_cfg = cfg.get("vqc", {})
         return VQCPolicy(
             n_actions=int(action_space.n),
             n_qubits=vqc_cfg.get("n_qubits", 4),
@@ -142,10 +142,10 @@ def _build_a2c_models(cfg, obs_space, action_space):
     from qrl.models.mlp import MLPPolicy, MLPValue
     from qrl.models.cnn import CNNVQCA2CActorCritic
 
-    hidden = cfg.hidden or 6
-    vqc_cfg = cfg.vqc or {}
+    hidden = cfg["hidden"] or 6
+    vqc_cfg = cfg.get("vqc", {})
 
-    if cfg.type == "cnn_a2c":
+    if cfg["type"] == "cnn_a2c":
         actor_critic = CNNVQCA2CActorCritic(
             n_actions=int(action_space.n),
             n_qubits=vqc_cfg.get("n_qubits", 6),
@@ -153,10 +153,10 @@ def _build_a2c_models(cfg, obs_space, action_space):
             reuploading=vqc_cfg.get("reuploading", True),
             observable=vqc_cfg.get("observable", "zz"),
             entangler=vqc_cfg.get("entangler", "cx"),
-            hidden=cfg.hidden or 256,
+            hidden=cfg["hidden"] or 256,
         )
         return actor_critic, actor_critic
-    elif cfg.type.startswith("vqc"):
+    elif cfg["type"].startswith("vqc"):
         actor = VQCPolicy(
             n_actions=int(action_space.n),
             n_qubits=vqc_cfg.get("n_qubits", 4),
@@ -180,7 +180,7 @@ def _build_a2c_models(cfg, obs_space, action_space):
         )
         critic = MLPValue(
             n_inputs=obs_space.shape[0] if hasattr(obs_space, "shape") else int(obs_space.n),
-            hidden=vqc_cfg.get("critic_hidden", 7),
+            hidden=cfg.get("critic_hidden", 7),
         )
 
     return actor, critic

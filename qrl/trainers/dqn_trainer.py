@@ -545,3 +545,111 @@ def train(
         "last_eval_mean_reward": last_eval_mean,
         "best_eval_mean_reward": None if best_eval_mean == float("-inf") else best_eval_mean,
     }
+
+
+class DQNTrainer:
+    """Trainer class wrapper for DQN.
+
+    Provides a class-based API that wraps the `train` function for
+    backwards compatibility with code that expects class-based trainers.
+    """
+
+    def __init__(
+        self,
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        results_path: str = "results/dqn.csv",
+        checkpoint_path: str = "checkpoints/dqn.pt",
+        seed: int = 0,
+        env_id: str = "CartPole-v1",
+        max_episodes: int = 2000,
+        gamma: float = 0.99,
+        batch_size: int = 16,
+        buffer_capacity: int = 10_000,
+        min_buffer_size: int = 16,
+        n_envs: int = 1,
+        steps_per_update: int = 1,
+        loss_fn: str = "mse",
+        target_update_every: int = 1,
+        epsilon_schedule: str = "exponential_episodes",
+        epsilon_start: float = 1.0,
+        epsilon_end: float = 0.01,
+        epsilon_decay: float = 0.99,
+        epsilon_decay_steps: int = 20_000,
+        solve_threshold: float = 475.0,
+        solve_window: int = 100,
+        max_steps_per_episode: int = 500,
+        max_wall_clock_s: float | None = None,
+        eval_every: int = 50,
+        eval_episodes: int = 5,
+        eval_seed_base: int = 10_000,
+        print_every: int = 10,
+        verbose: bool = True,
+    ):
+        self.model = model
+        self.optimizer = optimizer
+        self.results_path = results_path
+        self.checkpoint_path = checkpoint_path
+        self.seed = seed
+        self.env_id = env_id
+        self.max_episodes = max_episodes
+        self.gamma = gamma
+        self.batch_size = batch_size
+        self.buffer_capacity = buffer_capacity
+        self.min_buffer_size = min_buffer_size
+        self.n_envs = n_envs
+        self.steps_per_update = steps_per_update
+        self.loss_fn = loss_fn
+        self.target_update_every = target_update_every
+        self.epsilon_schedule = epsilon_schedule
+        self.epsilon_start = epsilon_start
+        self.epsilon_end = epsilon_end
+        self.epsilon_decay = epsilon_decay
+        self.epsilon_decay_steps = epsilon_decay_steps
+        self.solve_threshold = solve_threshold
+        self.solve_window = solve_window
+        self.max_steps_per_episode = max_steps_per_episode
+        self.max_wall_clock_s = max_wall_clock_s
+        self.eval_every = eval_every
+        self.eval_episodes = eval_episodes
+        self.eval_seed_base = eval_seed_base
+        self.print_every = print_every
+        self.verbose = verbose
+
+    def train(self) -> dict:
+        """Run the DQN training loop and return the results dict."""
+        return train(
+            model=self.model,
+            optimizer=self.optimizer,
+            results_path=self.results_path,
+            checkpoint_path=self.checkpoint_path,
+            seed=self.seed,
+            env_id=self.env_id,
+            max_episodes=self.max_episodes,
+            gamma=self.gamma,
+            batch_size=self.batch_size,
+            buffer_capacity=self.buffer_capacity,
+            min_buffer_size=self.min_buffer_size,
+            n_envs=self.n_envs,
+            steps_per_update=self.steps_per_update,
+            loss_fn=self.loss_fn,
+            target_update_every=self.target_update_every,
+            epsilon_schedule=self.epsilon_schedule,
+            epsilon_start=self.epsilon_start,
+            epsilon_end=self.epsilon_end,
+            epsilon_decay=self.epsilon_decay,
+            epsilon_decay_steps=self.epsilon_decay_steps,
+            solve_threshold=self.solve_threshold,
+            solve_window=self.solve_window,
+            max_steps_per_episode=self.max_steps_per_episode,
+            max_wall_clock_s=self.max_wall_clock_s,
+            eval_every=self.eval_every,
+            eval_episodes=self.eval_episodes,
+            eval_seed_base=self.eval_seed_base,
+            print_every=self.print_every,
+            verbose=self.verbose,
+        )
+
+
+# Module-level alias matching the __init__.py name
+train_dqn = train
