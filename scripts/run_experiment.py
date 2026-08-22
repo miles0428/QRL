@@ -21,7 +21,6 @@ def run_experiment(
     seed: int = 0,
     device: str | None = None,
     output_dir: str | None = None,
-    max_episodes: int | None = None,
     **overrides,
 ) -> dict:
     """Unified experiment entry point — loads config, builds model+trainer, runs training.
@@ -80,10 +79,6 @@ def run_experiment(
         env_id=cfg.env.id,
     )
 
-    # Inject max_episodes into trainer hyperparams (trainer.train() takes no kwargs)
-    if max_episodes is not None:
-        trainer._hyperparams["max_episodes"] = max_episodes
-
     # Train
     results = trainer.train(**overrides)
     return results
@@ -103,9 +98,6 @@ def main() -> int:
     parser.add_argument(
         "--output-dir", type=str, default=None, help="Override output_dir from config"
     )
-    parser.add_argument(
-        "--max-episodes", type=int, default=None, help="Override max_episodes from config"
-    )
     args = parser.parse_args()
 
     try:
@@ -114,7 +106,6 @@ def main() -> int:
             seed=args.seed,
             device=args.device,
             output_dir=args.output_dir,
-            max_episodes=args.max_episodes,
         )
         print(f"Training complete: {results}")
         return 0
