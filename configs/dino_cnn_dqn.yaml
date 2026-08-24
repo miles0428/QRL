@@ -1,0 +1,49 @@
+# CNN+VQC DQN on DinoRun-v0
+# Architecture: NatureCNNEncoder → VQC head → Q-values
+# Smoke test: 10 episodes / 300s wall clock
+
+runtime:
+  experiment_name: dino_cnn_dqn
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: DinoRun-v0
+  params: {}
+
+model:
+  type: cnn_dqn
+  encoder: cnn
+  head: qfunction
+  hidden: 256
+  vqc:
+    n_qubits: 6
+    n_layers: 3
+    reuploading: true
+    observable: zz
+    entangler: cx
+
+trainer:
+  algorithm: dqn
+  hyperparams:
+    max_episodes: 5000
+    max_wall_clock_s: 3600
+    eval_freq: 500
+    eval_episodes: 10
+    batch_size: 32
+    gamma: 0.99
+    buffer_capacity: 100000
+    min_buffer_size: 32
+    target_update_every: 100
+    epsilon_schedule: exponential_episodes
+    epsilon_start: 1.0
+    epsilon_end: 0.01
+    epsilon_decay: 0.995
+    max_steps_per_episode: 2000
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr: 0.001
+    amsgrad: true

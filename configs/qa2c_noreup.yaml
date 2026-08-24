@@ -1,0 +1,69 @@
+# ABLATION: configs/qa2c.yaml with data re-uploading turned OFF. Nothing else.
+#
+# The A2C half of the re-uploading ablation, and the one that maps directly onto
+# Koelle et al. 2024 (arXiv:2401.07043) -- their paper is about A2C, and their
+# Q2Q cell is this cell. See configs/qpg_noreup.yaml for the full framing.
+#
+# Re-uploading is switched off for BOTH the actor and the critic: the two share
+# the ansatz, and ablating only one of them would confound "re-uploading matters"
+# with "it matters more on one side than the other". If the joint ablation moves
+# the result, splitting it is the obvious follow-up.
+#
+# Parameter counts are unchanged at 45 + 45 = 90, exactly as in configs/qa2c.yaml.
+#
+# Four-layer layout (BLUEPRINT §6.1): runtime / env / model / trainer.
+runtime:
+  experiment_name: qa2c_noreup
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: CartPole-v1
+  params: {}
+
+model:
+  type: vqc_a2c
+  encoder: normalize_observation
+  head: policy
+  hidden: 6
+  vqc:
+    n_qubits: 4
+    n_layers: 5
+    reuploading: false   # <-- THE ONLY DIFFERENCE FROM configs/qa2c.yaml
+    observables: ["ZZII", "IIZZ"]
+    beta_init: 1.0
+    trainable_beta: true
+    output_rescaling: true
+    critic_observable: "ZZZZ"
+
+trainer:
+  algorithm: a2c
+  hyperparams:
+    max_episodes: 5000
+    gamma: 0.99
+    n_envs: 8
+    episodes_per_update: 16
+    gae_lambda: 0.95
+    normalize_advantages: true
+    value_coef: 0.5
+    value_loss_fn: huber
+    entropy_coef: 0.0
+    max_grad_norm: 1.0
+    max_steps_per_episode: 500
+    eval_every: 50
+    eval_episodes: 5
+    final_eval_episodes: 100
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr_variational: 0.01
+    lr_lam: 0.01
+    lr_beta: 0.1
+    lr_critic_vqc: 0.01
+    lr_critic_lam: 0.01
+    lr_critic_w: 0.1
+    amsgrad: true
+    gradient_method: adjoint
+    backend: torch_sv

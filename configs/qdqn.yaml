@@ -1,0 +1,131 @@
+# Quantum agent: VQC Q-function.
+#
+# PROVENANCE. Unless a line is marked GUESS, every value here is taken from
+# Skolik et al.'s own published implementation
+# (github.com/askolik/quantum_agents, run_quantum.py) and a PyTorch
+# reproduction of the same paper (github.com/qdevpsi3/qrl-dqn-gym) -- they are
+# the authors' settings, not our tuning. Values marked GUESS are ours and
+# should be read as starting points.
+#
+# v3 changed four settings that diverged from that reference; each is flagged
+# inline with what it was before.
+#
+# Four-layer layout (BLUEPRINT §6.1): runtime / env / model / trainer.
+runtime:
+  experiment_name: qdqn
+  seed: 0
+  device: cpu
+  precision: float32
+  output_dir: result/
+
+env:
+  id: CartPole-v1
+  params: {}
+
+model:
+  type: vqc
+  encoder: normalize_observation
+  head: qfunction
+  hidden: 6
+  vqc:
+    n_qubits: 4
+    n_layers: 5
+    # v3: was false. The reference enables re-uploading for CartPole. With a
+    # single encoding the circuit only has base-frequency expressivity, so this
+    # is a convergence requirement here, not an optional ablation extra.
+    reuploading: true
+    # v3: was ["ZIII", "IZII"]. The paper states performance depends critically
+    # on observable choice; two-qubit tensor products let each observable read
+    # more of the register than a single-qubit Z does.
+    observables: ["ZZII", "IIZZ"]
+    # Map <O> from [-1,1] to [0,1] before applying w, as the reference does.
+    # CartPole returns are non-negative and Q* ~ 99, so on [0,1] a weight near 100
+    # suffices; on [-1,1] representing Q~100 from <O>~0.2 needs w~500, which is
+    # exactly the drift observed in the pre-rescaling runs.
+    output_rescaling: true
+
+trainer:
+  algorithm: dqn
+  hyperparams:
+    # v3: was 2000. The old budget was never enough to observe convergence.
+    max_episodes: 5000
+    batch_size: 16
+    # v3 measurement: LEFT OFF deliberately. The 4x-physical-core rule comes from
+    # the qtm paper, where it matters because qtm fans the batch out across
+    # processes -- one process per chunk. The torch_sv path we actually train on
+    # instead pushes the whole batch through one broadcast statevector
+    # simulation, so cost is nearly flat in batch size. Raising the batch
+    # therefore buys no wall-clock but does move us off the Skolik reference's
+    # batch_size=16 and change the learning dynamics. Set true only for
+    # backend: qtm.
+    auto_batch_size: false
+    gamma: 0.99
+    buffer_capacity: 10000
+    min_buffer_size: 16
+    # v3: was 30 (gradient steps). Set to 1 initially, which is effectively NO
+    # target network. The reference trains every 10 env steps and syncs the target
+    # every 30, i.e. every ~3 gradient steps -- restored here.
+    target_update_every: 3
+    # Reference value (TFQ tutorial: steps_per_update=10). Also the single largest
+    # wall-clock lever: a gradient step costs far more than an environment step
+    # when the Q-function is a circuit, so this cuts ~10x off training time.
+    # Environments stepped in lockstep. Action selection is then ONE forward per
+    # tick instead of one per environment step, and that forward is dispatch-bound
+    # so it barely notices the batch: measured 6.52 ms at batch 1 vs 6.81 ms at
+    # batch 8. Net 8.96 -> 2.87 ms per env-step.
+    n_envs: 8
+    steps_per_update: 10
+    # Reference uses Huber. MSE let single large TD errors dominate the batch --
+    # observed mean losses in the hundreds with Q-values reaching ~100.
+    loss_fn: huber
+    # v3: was linear-in-env-steps. The reference decays epsilon once per episode
+    # by a constant factor. 0.99^n reaches 0.01 after ~458 episodes.
+    epsilon_schedule: exponential_episodes
+    epsilon_start: 1.0
+    epsilon_decay: 0.99
+    epsilon_end: 0.01
+    max_steps_per_episode: 500
+    # Greedy (epsilon=0) evaluation. The training reward columns are recorded on
+    # EXPLORING episodes, so they understate the policy whenever epsilon is
+    # appreciable -- at eps=0.13 about one action in eight is random, enough to
+    # topple the pole well short of 500 steps however good the policy is. These
+    # settings add a separate greedy curve, which is what policy quality should
+    # be read from, and what the CartPole-v1 solve criterion is actually defined
+    # on. Costs ~12 s per evaluation once the policy is good; every 50 episodes
+    # over a 5000-episode run is roughly 20 min per seed.
+    eval_every: 50          # episodes between greedy evaluations; 0 disables
+    eval_episodes: 5        # rollouts per periodic evaluation -- noisy, for the curve
+    final_eval_episodes: 100  # one-off at end of training; the solve claim comes from this
+    solve_threshold: 475.0
+    solve_window: 100
+  optimizer:
+    lr_variational: 0.001    # circuit weights
+    lr_lam: 0.001            # input scaling lam (formerly lr_input_scaling)
+    lr_w: 0.1                # output scaling w -- much larger; must climb from 1 to ~tens quickly
+    amsgrad: true
+    # adjoint gradients are exact and cheaper than SPSA's stochastic estimate.
+    # gradient_method: adjoint | spsa | param_shift | lin_comb
+    #   adjoint requires backend torch_sv or qtm
+    #   spsa / param_shift / lin_comb require backend qiskit_ml
+    gradient_method: adjoint
+    # backend: torch_sv | qtm | qiskit_ml
+    # qiskit_ml is retained as the finite-shot/noisy evaluation path and as the
+    # baseline arm of figures/backend_speed_comparison.png -- not for training.
+    #
+    # v3 measurement: qtm FAILED the stop-loss rule on this machine. qtm gets its
+    # speedup by fanning the batch out over multiprocessing.Process workers; on
+    # Windows that is `spawn`, so every forward and backward launches fresh
+    # interpreters that re-import torch and qiskit -- a single episode did not
+    # finish in 10 minutes. Forced sequential (num_threads=1) it works but yields
+    # only 1.42 s/grad step against the 2.16 s qiskit-ML+SPSA baseline: 1.5x,
+    # under the 5x floor. This is a platform property, not a defect in qtm -- on
+    # Linux (fork) its published fan-out works.
+    #
+    # torch_sv keeps the whole project on Qiskit -- same QuantumCircuit, same
+    # SparsePauliOp observables, same qiskit-aer finite-shot path -- and changes
+    # only how expectation values are computed: the circuit is read out of
+    # circuit.data and evaluated as torch tensor algebra, with autograd supplying
+    # exact gradients in one reverse pass. Verified against Qiskit's own
+    # Statevector and against qtm's gradients by
+    # scripts/verify_backend_equivalence.py.
+    backend: torch_sv
