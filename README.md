@@ -110,3 +110,11 @@ Results are written to the `result/` directory.
 - **Quantum simulation speed**: Statevector simulation scales exponentially with qubit count. The 9-qubit `QuantumSpinCartPole-v0` is lightweight; larger circuits will be significantly slower.
 - **PYTHONPATH**: The root of the repository must be on `PYTHONPATH` so that `qrl.*` imports resolve correctly.
 - **GPU**: `torch>=2.0` with CUDA is recommended for CNN-based experiments; the quantum backend runs on CPU.
+
+## Contributors
+
+- Yu-Cheng Chung
+- Minnie Tsai
+- Yun-Siang Zeng
+- Aninda Astuti
+- Zhen-Jun Liu
